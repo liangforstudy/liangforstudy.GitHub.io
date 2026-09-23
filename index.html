@@ -8,6 +8,8 @@
             :root {
                 --bg: #212121;
                 --text: whitesmoke;
+                --accent-btn: #5865F2; /* Discord-themed blue button */
+                --btn-hover: #4752C4;
             }
             html {
                 background-color: var(--bg);
@@ -18,22 +20,64 @@
                 margin: 0;
                 padding: 2rem;
             }
-            a { color: var(--text); text-decoration: none; }
+            a { color: var(--text); text-decoration: none; cursor: pointer; }
+            
+            /* High-visibility primary button for main link */
+            .primary-btn {
+                display: inline-block;
+                background-color: var(--accent-btn);
+                color: #ffffff !important;
+                padding: 0.5rem 1.2rem;
+                border-radius: 8px;
+                font-weight: 700;
+                font-size: 0.6rem;
+                text-decoration: none !important;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                transition: background-color 0.2s ease, transform 0.1s ease;
+            }
+            .primary-btn:hover {
+                background-color: var(--btn-hover);
+            }
+            .primary-btn:active {
+                transform: scale(0.96);
+            }
+
+            /* Secondary header links with subtle button outlines */
+            .secondary-btn {
+                display: inline-block;
+                background-color: rgba(255, 255, 255, 0.08);
+                color: var(--text) !important;
+                padding: 0.4rem 1rem;
+                border-radius: 6px;
+                font-weight: 700;
+                font-size: 0.55rem;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                transition: background-color 0.2s ease;
+            }
+            .secondary-btn:hover {
+                background-color: rgba(255, 255, 255, 0.18);
+            }
+
             img { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
         </style>
     </head>
     <body>
-    <header style="position: absolute; top: 1rem; right: 1rem;"></header>
-        <a href="video.html" style="color: var(--text); text-decoration: none; font-weight: 700; font-size: 0.6rem;">Please Unmute Video</a>
-    </header>
-        <div>
-            <video controls autoplay muted playsinline preload="metadata" style="width:100%; height:auto; display:block; margin:1rem auto;">
-            <source src="assets/media/Videos/Shaymin_explosion_racist.mp4" type="video/mp4">
-            Your browser does not support the video tag. <a href="assets/media/Videos/Shaymin_explosion_racist.mp4">Download video</a>.
-            </video>
+        <header style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; text-align: center;">
+            <!-- "Play Pixel art game" styled clearly as an interactive hyperlink -->
+            <a href="pixel.html" class="primary-btn">🎮 Play Pixel art game</a>
+            
+            <a href="charactor.html" class="secondary-btn">Create your own character</a>
+            <a href="video.html" class="secondary-btn">Join my Discord!</a>
+            <a href="video.html" style="color: var(--text); text-decoration: none; font-weight: 700; font-size: 0.6rem;">Please Unmute Video</a>
+        </header>
 
-        </div>
-        <a href="assets/media/Videos/Shaymin_explosion_racist.mp4">Download video</a>
         <div>
+            <video controls autoplay muted playsinline preload="metadata" style="width:100%; height:auto; display:block; margin:0 auto;">
+                <source src="assets/media/Videos/Shaymin_explosion_racist.mp4" type="video/mp4">
+                Your browser does not support the video tag. <a href="assets/media/Videos/Shaymin_explosion_racist.mp4">Download video</a>.
+            </video>
+        </div>
+
+        <a href="assets/media/Videos/Shaymin_explosion_racist.mp4" style="display: inline-block; margin-top: 1rem; font-size: 0.6rem;" class="secondary-btn">Download video</a>
     </body>
-    </html>
+</html>
