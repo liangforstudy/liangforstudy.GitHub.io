@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Video Editor - Stage 1</title>
+<style>
+  :root {
+    --bg: #16171a;
+    --panel: #1e2023;
+    --panel-2: #26282c;
+    --line: #33353a;
+    --text: #e8e8ea;
+    --text-dim: #8a8d93;
+    --accent: #5b8cff;
+    --accent-dim: #2c3f70;
+    --danger: #e35555;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+
+  /* Top bar */
+  #topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  #topbar h1 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.2px; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 500;
+  }
+  .icon-btn:active { background: var(--accent-dim); }
+
+  /* Stage */
+  #stageWrap {
+    flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+    background: #0b0c0d; position: relative; overflow: hidden;
+    touch-action: none;
+  }
+  #compositeCanvas { display: block; touch-action: none; }
+  #emptyHint {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; color: var(--text-dim);
+    font-size: 13px; pointer-events: none; text-align: center; padding: 20px;
+  }
+  #emptyHint span.big { font-size: 15px; color: var(--text); }
+
+  /* Selection handles overlay */
+  #selBox {
+    position: absolute; border: 1.5px solid var(--accent); pointer-events: none;
+    display: none;
+  }
+  .handle {
+    position: absolute; width: 22px; height: 22px; margin: -11px;
+    background: var(--accent); border-radius: 50%; border: 2px solid #fff;
+    pointer-events: auto; touch-action: none;
+  }
+
+  /* Bottom controls region */
+  #bottom { flex-shrink: 0; border-top: 1px solid var(--line); background: var(--panel); }
+
+  #addRow {
+    display: flex; gap: 8px; padding: 10px 12px; overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+  }
+  #addRow button {
+    flex-shrink: 0; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--text); border-radius: 20px; padding: 9px 16px; font-size: 13px; font-weight: 500;
+  }
+  #addRow button:active { background: var(--accent-dim); border-color: var(--accent); }
+
+  /* Layer list */
+  #stageWrap { min-height: 38vh; }
+  #tabs { display: flex; border-bottom: 1px solid var(--line); }
+  #tabs button {
+    flex: 1; background: none; border: none; color: var(--text-dim);
+    padding: 10px 0; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent;
+  }
+  #tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  #tabs button:disabled { opacity: 0.35; }
+  #panelBody { height: 32vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #layerList { }
+  #layerList.hidden, #inspector.hidden { display: none !important; }
+  .layer-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .layer-row.selected { background: var(--accent-dim); }
+  .layer-thumb {
+    width: 40px; height: 40px; border-radius: 8px; background: #000; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    border: 1px solid var(--line); overflow: hidden;
+  }
+  .layer-thumb canvas { width: 100%; height: 100%; object-fit: cover; }
+  .layer-info { flex: 1; min-width: 0; }
+  .layer-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .layer-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .mini-btn {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--panel-2);
+    border: 1px solid var(--line); color: var(--text); font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mini-btn.danger { color: var(--danger); }
+  .mini-btn:active { background: var(--accent-dim); }
+  .drag-handle {
+    width: 28px; height: 34px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 16px; touch-action: none; cursor: grab;
+  }
+  #layerList.reordering { overflow-y: hidden; }
+  .layer-row.dragging { opacity: 0.4; }
+  #layerListEmpty { padding: 20px 12px; text-align: center; color: var(--text-dim); font-size: 13px; }
+
+  /* Inspector (transform sliders) */
+  #inspector { padding: 12px 14px 14px; }
+  .prop-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .prop-row label { width: 62px; font-size: 12px; color: var(--text-dim); flex-shrink: 0; }
+  .prop-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .prop-row output { width: 46px; font-size: 12px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="topbar">
+    <h1>Video Editor</h1>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="icon-btn" id="resBtn">960×540</button>
+      <button class="icon-btn" id="playBtn">▶ Play</button>
+    </div>
+  </div>
+
+  <div id="stageWrap">
+    <canvas id="compositeCanvas"></canvas>
+    <div id="emptyHint">
+      <span class="big">No layers yet</span>
+      <span>Add a video, image, or shape below to get started</span>
+    </div>
+    <div id="selBox">
+      <div class="handle" id="handleScale" style="right:0; bottom:0;"></div>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div id="addRow">
+      <button id="addMediaBtn">+ Media</button>
+      <button id="addShapeBtn">+ Shape</button>
+      <button id="addTextBtn">+ Text</button>
+    </div>
+    <div id="tabs">
+      <button id="tabLayers" class="active">Layers</button>
+      <button id="tabAdjust" disabled>Adjust</button>
+    </div>
+    <div id="panelBody">
+    <div id="layerList"></div>
+    <div id="inspector" class="hidden">
+      <div class="prop-row">
+        <label>X</label>
+        <input type="range" id="propX" min="-500" max="500" value="0">
+        <output id="propXVal">0</output>
+      </div>
+      <div class="prop-row">
+        <label>Y</label>
+        <input type="range" id="propY" min="-500" max="500" value="0">
+        <output id="propYVal">0</output>
+      </div>
+      <div class="prop-row">
+        <label>Scale</label>
+        <input type="range" id="propScale" min="10" max="300" value="100">
+        <output id="propScaleVal">100%</output>
+      </div>
+      <div class="prop-row">
+        <label>Rotate</label>
+        <input type="range" id="propRotate" min="-180" max="180" value="0">
+        <output id="propRotateVal">0°</output>
+      </div>
+      <div class="prop-row">
+        <label>Opacity</label>
+        <input type="range" id="propOpacity" min="0" max="100" value="100">
+        <output id="propOpacityVal">100%</output>
+      </div>
+      <div class="prop-row" id="fitRow" style="display:none;">
+        <label>Fit</label>
+        <div style="display:flex; gap:6px; flex:1;">
+          <button class="icon-btn" id="fitContainBtn" style="flex:1;">Fit (bars)</button>
+          <button class="icon-btn" id="fitCoverBtn" style="flex:1;">Fill (crop)</button>
+        </div>
+      </div>
+      <button class="icon-btn" id="resetLayerBtn" style="width:100%; margin-top:4px;">Reset transform</button>
+    </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="mediaFileInput" accept="video/*,image/*">
+
+<script>
+const STORAGE_PREFIX = 'videoEditorApp';
+
+// ---------- Canvas / stage setup ----------
+const stageWrap = document.getElementById('stageWrap');
+const cv = document.getElementById('compositeCanvas');
+const ctx = cv.getContext('2d');
+const emptyHint = document.getElementById('emptyHint');
+const selBox = document.getElementById('selBox');
+
+const STAGE_W_DEFAULT = 960, STAGE_H_DEFAULT = 540;
+let STAGE_W = STAGE_W_DEFAULT, STAGE_H = STAGE_H_DEFAULT;
+let stageResolutionLocked = false; // becomes true once user manually sets it, or after first import
+
+function maybeAdoptStageResolution(w, h) {
+  if (stageResolutionLocked || !w || !h) return;
+  STAGE_W = w; STAGE_H = h;
+  stageResolutionLocked = true;
+  sizeCanvas();
+  updateResLabel();
+}
+
+function sizeCanvas() {
+  const wrapRect = stageWrap.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const scale = Math.min(wrapRect.width / STAGE_W, wrapRect.height / STAGE_H) * 0.94;
+  const cssW = STAGE_W * scale, cssH = STAGE_H * scale;
+  cv.style.width = cssW + 'px';
+  cv.style.height = cssH + 'px';
+  cv.width = Math.round(STAGE_W * dpr);
+  cv.height = Math.round(STAGE_H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cv._displayScale = scale; // css px per stage unit, for hit-testing pointer coords
+}
+window.addEventListener('resize', sizeCanvas);
+sizeCanvas();
+
+// ---------- Layer model ----------
+let layers = [];      // bottom -> top
+let selectedId = null;
+let nextId = 1;
+let playing = false;
+
+function makeLayer(type, extra) {
+  return Object.assign({
+    id: nextId++,
+    type,                    // 'video' | 'image' | 'shape' | 'text'
+    name: type,
+    x: 0, y: 0,              // offset from stage center, in stage units
+    scale: 100,              // percent
+    rotation: 0,             // degrees
+    opacity: 100,            // percent
+    width: 300, height: 300, // natural-ish size in stage units for shapes/text
+    offEl: null,             // source element (video/image) or drawn shape info
+  }, extra || {});
+}
+
+function selectedLayer() { return layers.find(l => l.id === selectedId) || null; }
+
+// ---------- Adding layers ----------
+document.getElementById('addMediaBtn').addEventListener('click', () => {
+  document.getElementById('mediaFileInput').click();
+});
+document.getElementById('addShapeBtn').addEventListener('click', () => {
+  const l = makeLayer('shape', {
+    name: 'Rectangle', shapeKind: 'rect', color: '#5b8cff',
+    width: 260, height: 180
+  });
+  layers.push(l);
+  selectAndRefresh(l.id);
+});
+document.getElementById('addTextBtn').addEventListener('click', () => {
+  const l = makeLayer('text', {
+    name: 'Text', text: 'Title', color: '#ffffff', fontSize: 48,
+    width: 300, height: 80
+  });
+  layers.push(l);
+  selectAndRefresh(l.id);
+});
+
+document.getElementById('mediaFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.type.startsWith('video/')) {
+    addVideoLayer(file);
+  } else if (file.type.startsWith('image/')) {
+    addImageLayer(file);
+  }
+  e.target.value = '';
+});
+
+function addVideoLayer(file) {
+  const video = document.createElement('video');
+  video.src = URL.createObjectURL(file);
+  video.muted = true; // layer video plays muted in composite for now; unmuted on export/full play later
+  video.playsInline = true;
+  video.loop = true;
+  video.addEventListener('loadedmetadata', () => {
+    maybeAdoptStageResolution(video.videoWidth, video.videoHeight);
+    const l = makeLayer('video', {
+      name: file.name,
+      offEl: video,
+    });
+    fitToStage(l, video.videoWidth, video.videoHeight, 'contain');
+    l.audioOn = true;
+    layers.push(l);
+    selectAndRefresh(l.id);
+    // Force a first frame to decode, otherwise iOS leaves the layer blank until Play.
+    video.currentTime = 0.001;
+    if (playing) { video.muted = !l.audioOn; video.play().catch(() => {}); }
+  }, { once: true });
+}
+
+function addImageLayer(file) {
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  img.onload = () => {
+    maybeAdoptStageResolution(img.naturalWidth, img.naturalHeight);
+    const l = makeLayer('image', { name: file.name, offEl: img });
+    fitToStage(l, img.naturalWidth, img.naturalHeight, 'contain');
+    layers.push(l);
+    selectAndRefresh(l.id);
+  };
+}
+
+// ---------- Compositing / render loop ----------
+function drawLayer(layer) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layer.opacity / 100));
+  ctx.translate(STAGE_W / 2 + layer.x, STAGE_H / 2 + layer.y);
+  ctx.rotate(layer.rotation * Math.PI / 180);
+  const s = layer.scale / 100;
+  ctx.scale(s, s);
+
+  const w = layer.width, h = layer.height;
+
+  if (layer.type === 'video' || layer.type === 'image') {
+    const el = layer.offEl;
+    if (el && ((layer.type === 'video' && el.readyState >= 2) || layer.type === 'image')) {
+      ctx.drawImage(el, -w / 2, -h / 2, w, h);
+    } else {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+    }
+  } else if (layer.type === 'shape') {
+    ctx.fillStyle = layer.color;
+    if (layer.shapeKind === 'rect') {
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+    } else if (layer.shapeKind === 'ellipse') {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (layer.type === 'text') {
+    ctx.fillStyle = layer.color;
+    ctx.font = `600 ${layer.fontSize}px -apple-system, sans-serif`;
+    layer.width = Math.max(20, ctx.measureText(layer.text).width + 16); // keep box/hit area matching the glyphs
+    layer.height = layer.fontSize * 1.3;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(layer.text, 0, 0);
+  }
+
+  ctx.restore();
+}
+
+function render() {
+  ctx.clearRect(0, 0, STAGE_W, STAGE_H);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+  for (const layer of layers) drawLayer(layer);
+  drawSelectionOverlay();
+  emptyHint.style.display = layers.length ? 'none' : 'flex';
+}
+
+let rafId = null;
+function loop() {
+  render();
+  rafId = requestAnimationFrame(loop);
+}
+loop();
+
+// ---------- Play/pause (drives layer videos together) ----------
+const playBtn = document.getElementById('playBtn');
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  playBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  for (const l of layers) {
+    if (l.type === 'video' && l.offEl) {
+      if (playing) {
+        l.offEl.muted = !l.audioOn; // this tap is the user gesture iOS needs for sound
+        l.offEl.play().catch(() => { l.offEl.muted = true; l.offEl.play().catch(() => {}); });
+      } else l.offEl.pause();
+    }
+  }
+});
+
+function toggleLayerAudio(layer) {
+  layer.audioOn = !layer.audioOn;
+  if (layer.offEl) layer.offEl.muted = !layer.audioOn || !playing;
+  renderLayerList();
+}
+
+// ---------- Selection overlay (screen-space box around selected layer) ----------
+function stageToScreen(px, py) {
+  const rect = cv.getBoundingClientRect();
+  const scale = cv._displayScale || 1;
+  return {
+    x: rect.left - stageWrap.getBoundingClientRect().left + (STAGE_W / 2 + px) * scale,
+    y: rect.top - stageWrap.getBoundingClientRect().top + (STAGE_H / 2 + py) * scale,
+  };
+}
+
+function drawSelectionOverlay() {
+  const layer = selectedLayer();
+  if (!layer) { selBox.style.display = 'none'; return; }
+  const rect = cv.getBoundingClientRect();
+  const wrapRect = stageWrap.getBoundingClientRect();
+  const scale = cv._displayScale || (rect.width / STAGE_W);
+
+  const cx = rect.left - wrapRect.left + rect.width / 2 + layer.x * scale;
+  const cy = rect.top - wrapRect.top + rect.height / 2 + layer.y * scale;
+  const s = layer.scale / 100;
+  const w = layer.width * s * scale;
+  const h = layer.height * s * scale;
+
+  selBox.style.display = 'block';
+  selBox.style.left = (cx - w / 2) + 'px';
+  selBox.style.top = (cy - h / 2) + 'px';
+  selBox.style.width = w + 'px';
+  selBox.style.height = h + 'px';
+  selBox.style.transform = `rotate(${layer.rotation}deg)`;
+}
+
+// ---------- Pointer interaction on stage: drag to move, handle to scale ----------
+let dragMode = null; // 'move' | 'scale'
+let dragStart = null;
+
+function screenToStage(clientX, clientY) {
+  const r = cv.getBoundingClientRect();
+  const s = cv._displayScale || 1;
+  return { x: (clientX - r.left) / s - STAGE_W / 2, y: (clientY - r.top) / s - STAGE_H / 2 };
+}
+
+function hitTest(clientX, clientY) {
+  const p = screenToStage(clientX, clientY);
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const l = layers[i];
+    const a = -l.rotation * Math.PI / 180, s = l.scale / 100;
+    const dx = p.x - l.x, dy = p.y - l.y;
+    const lx = (dx * Math.cos(a) - dy * Math.sin(a)) / s;
+    const ly = (dx * Math.sin(a) + dy * Math.cos(a)) / s;
+    if (Math.abs(lx) <= l.width / 2 && Math.abs(ly) <= l.height / 2) return l;
+  }
+  return null;
+}
+
+stageWrap.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('#handleScale')) return; // handled separately
+  const hit = hitTest(e.clientX, e.clientY);
+  if (hit && hit.id !== selectedId) selectAndRefresh(hit.id);
+  else if (!hit) { selectAndRefresh(null); return; }
+  const layer = selectedLayer();
+  if (!layer) return;
+  dragMode = 'move';
+  dragStart = { x: e.clientX, y: e.clientY, lx: layer.x, ly: layer.y };
+  stageWrap.setPointerCapture(e.pointerId);
+});
+
+stageWrap.addEventListener('pointermove', (e) => {
+  if (!dragMode || !dragStart) return;
+  const layer = selectedLayer();
+  if (!layer) return;
+  const scale = cv._displayScale || 1;
+  const dx = (e.clientX - dragStart.x) / scale;
+  const dy = (e.clientY - dragStart.y) / scale;
+  if (dragMode === 'move') {
+    layer.x = dragStart.lx + dx;
+    layer.y = dragStart.ly + dy;
+    syncInspectorFromLayer();
+  }
+});
+
+function endDrag() { dragMode = null; dragStart = null; }
+stageWrap.addEventListener('pointerup', endDrag);
+stageWrap.addEventListener('pointercancel', endDrag);
+
+document.getElementById('handleScale').addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  const layer = selectedLayer();
+  if (!layer) return;
+  dragMode = 'scale';
+  dragStart = { x: e.clientX, y: e.clientY, ls: layer.scale };
+  e.target.setPointerCapture(e.pointerId);
+});
+document.getElementById('handleScale').addEventListener('pointermove', (e) => {
+  if (dragMode !== 'scale') return;
+  const layer = selectedLayer();
+  if (!layer) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  const delta = (dx + dy) / 2;
+  layer.scale = Math.max(10, Math.min(400, dragStart.ls + delta * 0.5));
+  syncInspectorFromLayer();
+});
+document.getElementById('handleScale').addEventListener('pointerup', endDrag);
+
+// ---------- Layer list UI ----------
+const layerListEl = document.getElementById('layerList');
+
+function iconFor(type) {
+  return { video: '🎬', image: '🖼️', shape: '◼', text: 'T' }[type] || '?';
+}
+
+function renderLayerList() {
+  layerListEl.innerHTML = '';
+  if (!layers.length) {
+    const empty = document.createElement('div');
+    empty.id = 'layerListEmpty';
+    empty.textContent = 'Layers you add will appear here, top layer on top.';
+    layerListEl.appendChild(empty);
+    return;
+  }
+  // Show top layer first in the list (matches visual stacking mental model)
+  const ordered = [...layers].reverse();
+  for (const layer of ordered) {
+    const row = document.createElement('div');
+    row.className = 'layer-row' + (layer.id === selectedId ? ' selected' : '');
+    row.dataset.id = layer.id;
+
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    handle.textContent = '≡';
+    row.appendChild(handle);
+
+    const thumb = document.createElement('div');
+    thumb.className = 'layer-thumb';
+    thumb.textContent = iconFor(layer.type);
+    if (layer.type === 'shape') { thumb.textContent = ''; thumb.style.background = layer.color; }
+    row.appendChild(thumb);
+
+    const info = document.createElement('div');
+    info.className = 'layer-info';
+    info.innerHTML = `<div class="layer-name">${escapeHtml(layer.name)}</div><div class="layer-sub">${layer.type}</div>`;
+    row.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'layer-actions';
+    if (layer.type === 'video') {
+      const muteBtn = document.createElement('button');
+      muteBtn.className = 'mini-btn';
+      muteBtn.textContent = layer.audioOn ? '🔊' : '🔇';
+      muteBtn.setAttribute('aria-label', layer.audioOn ? 'Mute layer' : 'Unmute layer');
+      muteBtn.addEventListener('click', (ev) => { ev.stopPropagation(); toggleLayerAudio(layer); });
+      actions.appendChild(muteBtn);
+    }
+    const delBtn = document.createElement('button');
+    delBtn.className = 'mini-btn danger';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (ev) => { ev.stopPropagation(); deleteLayer(layer.id); });
+    actions.appendChild(delBtn);
+    row.appendChild(actions);
+
+    row.addEventListener('click', () => selectAndRefresh(layer.id));
+    attachDragReorder(row, handle, layer.id);
+
+    layerListEl.appendChild(row);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function deleteLayer(id) {
+  const layer = layers.find(l => l.id === id);
+  if (layer && layer.offEl && layer.offEl.tagName === 'VIDEO') {
+    layer.offEl.pause();
+  }
+  layers = layers.filter(l => l.id !== id);
+  if (selectedId === id) selectedId = null;
+  renderLayerList();
+  syncInspectorVisibility();
+}
+
+// Long-press + drag to reorder (touch-friendly, avoids clashing with scroll)
+function attachDragReorder(row, handle, id) {
+  let longPressTimer = null;
+  let dragging = false;
+
+  // Moving the row in the DOM detaches the handle, which makes the browser drop
+  // pointer capture mid-drag. So move/up are tracked on window, keyed by pointerId.
+  let activePointer = null;
+
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    activePointer = e.pointerId;
+    longPressTimer = setTimeout(() => {
+      dragging = true;
+      row.classList.add('dragging');
+      layerListEl.classList.add('reordering');
+    }, 120);
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', finishDrag);
+    window.addEventListener('pointercancel', finishDrag);
+  });
+
+  function onMove(e) {
+    if (e.pointerId !== activePointer || !dragging) return;
+    e.preventDefault();
+    const afterEl = getRowAfter(layerListEl, e.clientY);
+    if (afterEl == null) {
+      if (layerListEl.lastElementChild !== row) layerListEl.appendChild(row);
+    } else if (afterEl !== row && afterEl !== row.nextElementSibling) {
+      layerListEl.insertBefore(row, afterEl);
+    }
+  }
+
+  function finishDrag(e) {
+    if (e.pointerId !== activePointer) return;
+    clearTimeout(longPressTimer);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', finishDrag);
+    window.removeEventListener('pointercancel', finishDrag);
+    activePointer = null;
+    if (dragging) {
+      dragging = false;
+      layerListEl.classList.remove('reordering');
+      commitOrderFromDOM();
+      renderLayerList();
+    }
+  }
+}
+
+function getRowAfter(container, y) {
+  const rows = [...container.querySelectorAll('.layer-row:not(.dragging)')];
+  return rows.find(r => {
+    const box = r.getBoundingClientRect();
+    return y < box.top + box.height / 2;
+  }) || null;
+}
+
+function commitOrderFromDOM() {
+  const ids = [...layerListEl.querySelectorAll('.layer-row')].map(r => Number(r.dataset.id));
+  // DOM list is top-layer-first; internal `layers` array is bottom-first, so reverse.
+  const idToLayer = Object.fromEntries(layers.map(l => [l.id, l]));
+  layers = ids.reverse().map(id => idToLayer[id]).filter(Boolean);
+}
+
+// ---------- Inspector ----------
+const inspector = document.getElementById('inspector');
+const propX = document.getElementById('propX');
+const propY = document.getElementById('propY');
+const propScale = document.getElementById('propScale');
+const propRotate = document.getElementById('propRotate');
+const propOpacity = document.getElementById('propOpacity');
+const propXVal = document.getElementById('propXVal');
+const propYVal = document.getElementById('propYVal');
+const propScaleVal = document.getElementById('propScaleVal');
+const propRotateVal = document.getElementById('propRotateVal');
+const propOpacityVal = document.getElementById('propOpacityVal');
+
+let activeTab = 'layers';
+const tabLayers = document.getElementById('tabLayers');
+const tabAdjust = document.getElementById('tabAdjust');
+function setTab(t) {
+  activeTab = t;
+  tabLayers.classList.toggle('active', t === 'layers');
+  tabAdjust.classList.toggle('active', t === 'adjust');
+  layerListEl.classList.toggle('hidden', t !== 'layers');
+  inspector.classList.toggle('hidden', t !== 'adjust');
+}
+tabLayers.addEventListener('click', () => setTab('layers'));
+tabAdjust.addEventListener('click', () => { if (selectedLayer()) setTab('adjust'); });
+
+function syncInspectorVisibility() {
+  const layer = selectedLayer();
+  tabAdjust.disabled = !layer;
+  if (!layer && activeTab === 'adjust') setTab('layers');
+  fitRow.style.display = (layer && (layer.type === 'video' || layer.type === 'image')) ? 'flex' : 'none';
+}
+
+function syncInspectorFromLayer() {
+  const layer = selectedLayer();
+  if (!layer) return;
+  propX.value = layer.x; propXVal.textContent = Math.round(layer.x);
+  propY.value = layer.y; propYVal.textContent = Math.round(layer.y);
+  propScale.value = layer.scale; propScaleVal.textContent = Math.round(layer.scale) + '%';
+  propRotate.value = layer.rotation; propRotateVal.textContent = Math.round(layer.rotation) + '°';
+  propOpacity.value = layer.opacity; propOpacityVal.textContent = Math.round(layer.opacity) + '%';
+}
+
+[[propX, 'x', v => v, propXVal, v => Math.round(v)],
+ [propY, 'y', v => v, propYVal, v => Math.round(v)],
+ [propScale, 'scale', v => v, propScaleVal, v => Math.round(v) + '%'],
+ [propRotate, 'rotation', v => v, propRotateVal, v => Math.round(v) + '°'],
+ [propOpacity, 'opacity', v => v, propOpacityVal, v => Math.round(v) + '%'],
+].forEach(([input, prop, xform, out, outFmt]) => {
+  input.addEventListener('input', () => {
+    const layer = selectedLayer();
+    if (!layer) return;
+    layer[prop] = xform(Number(input.value));
+    out.textContent = outFmt(layer[prop]);
+  });
+});
+
+function selectAndRefresh(id) {
+  selectedId = id;
+  renderLayerList();
+  syncInspectorVisibility();
+  syncInspectorFromLayer();
+}
+
+// ---------- Resolution control (Handbrake-style: default to source, adjustable) ----------
+const resBtn = document.getElementById('resBtn');
+function updateResLabel() {
+  resBtn.textContent = `${STAGE_W}×${STAGE_H}`;
+}
+resBtn.addEventListener('click', () => {
+  const input = prompt('Set canvas resolution (widthxheight), e.g. 1920x1080:', `${STAGE_W}x${STAGE_H}`);
+  if (!input) return;
+  const m = input.match(/(\d+)\s*[xX]\s*(\d+)/);
+  if (!m) { alert('Enter as widthxheight, e.g. 1280x720'); return; }
+  STAGE_W = Math.max(64, parseInt(m[1], 10));
+  STAGE_H = Math.max(64, parseInt(m[2], 10));
+  stageResolutionLocked = true;
+  sizeCanvas();
+  updateResLabel();
+});
+updateResLabel();
+
+// ---------- Reset transform ----------
+document.getElementById('resetLayerBtn').addEventListener('click', () => {
+  const layer = selectedLayer();
+  if (!layer) return;
+  layer.x = 0; layer.y = 0; layer.scale = 100; layer.rotation = 0; layer.opacity = 100;
+  syncInspectorFromLayer();
+});
+
+// ---------- Fit mode (video/image layers): Fit = letterbox, Fill = crop to cover ----------
+const fitRow = document.getElementById('fitRow');
+document.getElementById('fitContainBtn').addEventListener('click', () => setFitMode('contain'));
+document.getElementById('fitCoverBtn').addEventListener('click', () => setFitMode('cover'));
+
+function setFitMode(mode) {
+  const layer = selectedLayer();
+  if (!layer || !layer.offEl) return;
+  const srcW = layer.type === 'video' ? layer.offEl.videoWidth : layer.offEl.naturalWidth;
+  const srcH = layer.type === 'video' ? layer.offEl.videoHeight : layer.offEl.naturalHeight;
+  if (!srcW || !srcH) return;
+  fitToStage(layer, srcW, srcH, mode);
+  syncInspectorFromLayer();
+}
+
+// Size a media layer to the full stage: 'contain' = whole frame visible (bars if aspect differs),
+// 'cover' = fills the stage, cropping overflow. Same aspect as stage = exact fit either way.
+function fitToStage(layer, srcW, srcH, mode) {
+  if (!srcW || !srcH) return;
+  const targetW = STAGE_W, targetH = STAGE_H;
+  const srcAspect = srcW / srcH, targetAspect = targetW / targetH;
+  if (mode === 'contain') {
+    if (srcAspect > targetAspect) { layer.width = targetW; layer.height = targetW / srcAspect; }
+    else { layer.height = targetH; layer.width = targetH * srcAspect; }
+  } else {
+    if (srcAspect > targetAspect) { layer.height = targetH; layer.width = targetH * srcAspect; }
+    else { layer.width = targetW; layer.height = targetW / srcAspect; }
+  }
+  syncInspectorFromLayer();
+}
+</script>
+
+</body>
+</html>
