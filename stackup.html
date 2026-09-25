@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Stack Up Endless</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,sans-serif}
+  canvas{display:block;width:100%;height:100%}
+  #hud{position:fixed;top:16px;left:0;right:0;text-align:center;color:#fff;pointer-events:none;text-shadow:0 2px 6px #0008}
+  #score{font-size:56px;font-weight:800}
+  #best{font-size:14px;opacity:.8}
+  #msg{position:fixed;bottom:12%;left:0;right:0;text-align:center;color:#fff;font-size:18px;pointer-events:none;text-shadow:0 2px 6px #0008}
+  #misses{font-size:13px;opacity:.7;margin-top:2px}
+  button{font:600 16px system-ui,sans-serif;color:#fff;border:0;border-radius:12px;padding:12px 20px;cursor:pointer}
+  #resetBtn{position:fixed;top:14px;right:14px;background:#fff2;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:10px 14px;display:none}
+  #choice{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0006}
+  #choice .box{background:#222c;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:24px;border-radius:18px;text-align:center;color:#fff;max-width:280px;margin:0 16px}
+  #choice h2{margin:0 0 6px;font-size:22px}
+  #choice p{margin:0 0 18px;opacity:.8;font-size:15px}
+  #choice .row{display:flex;gap:10px;justify-content:center}
+  #contBtn{background:#3b8}
+  #honest{font-size:14px;color:#ffd23f;font-weight:700;margin-top:2px}
+  #dbgBtn{position:fixed;top:14px;left:14px;background:#fff2;padding:10px 14px}
+  #dbg{position:fixed;top:64px;left:14px;display:none;background:#222e;color:#fff;padding:14px;border-radius:12px;max-width:240px;font-size:16px}
+  #dbg input{width:20px;height:20px;vertical-align:middle;margin-right:6px}
+  #resetBestBtn{background:#a33;margin-top:12px;padding:10px 14px;width:100%}
+  #dbg .hint{font-size:13px;opacity:.7;margin-top:6px}
+  #restartBtn{background:#555}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div id="score">0</div><div id="best">Best 0</div><div id="misses"></div><div id="honest"></div></div>
+<button id="dbgBtn">⚙</button>
+<div id="dbg"><label><input type="checkbox" id="supportChk" checked> Stack on older layers</label>
+<div class="hint">After you continue, blocks can land on any wider layer below, not just the top one.</div>
+<button id="resetBestBtn">Reset best score</button></div>
+<div id="msg">Tap to start</div>
+<button id="resetBtn">↺ Reset</button>
+<div id="choice"><div class="box">
+  <h2>Missed!</h2>
+  <p>Keep stacking from here, or start over?</p>
+  <div class="row"><button id="contBtn">Continue</button><button id="restartBtn">Start over</button></div>
+</div></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),msgEl=document.getElementById('msg');
+let W,H,DPR;
+function resize(){DPR=window.devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',resize);resize();
+
+// Isometric world: blocks have x,z (centre), w,d (size), y (level)
+const BH=22;            // block height in px
+const BASE=160;         // starting size
+const missesEl=document.getElementById('misses'),resetBtn=document.getElementById('resetBtn'),choiceEl=document.getElementById('choice');
+const honestEl=document.getElementById('honest');
+let nextI=0,misses=0,honestScore=null,honestTopI=-1,supportAny=true;
+function span(a,b,k,s){return [Math.max(a[k]-a[s]/2,b[k]-b[s]/2),Math.min(a[k]+a[s]/2,b[k]+b[s]/2)]}
+document.getElementById('dbgBtn').addEventListener('click',()=>{const p=document.getElementById('dbg');p.style.display=p.style.display==='block'?'none':'block'});
+(()=>{ // two-tap inline confirm (no browser dialogs - blocked in sandboxes)
+  const btn=document.getElementById('resetBestBtn');let armed=null;
+  const disarm=()=>{clearTimeout(armed);armed=null;btn.textContent='Reset best score';btn.style.background=''};
+  btn.addEventListener('click',()=>{
+    if(!armed){btn.textContent='Tap again to confirm';btn.style.background='#d22';armed=setTimeout(disarm,3000);return}
+    disarm();best=0;try{localStorage.removeItem('stackupBest')}catch(e){}
+    bestEl.textContent='Best 0';btn.textContent='Best score reset ✓';setTimeout(()=>{if(!armed)btn.textContent='Reset best score'},1500);
+  });
+})();
+document.getElementById('supportChk').addEventListener('change',e=>{supportAny=e.target.checked});
+let stack,cur,debris,state,score,best=0,camY,camTarget,hueBase,combo,axis,speed,perfectFlash;
+try{best=+localStorage.getItem('stackupBest')||0}catch(e){}
+bestEl.textContent='Best '+best;
+
+function iso(x,y,z){ // world -> screen
+  return [W/2+(x-z)*0.87, H*0.62+(x+z)*0.5-y+camY];
+}
+function color(i,l){return `hsl(${(hueBase+i*6)%360},65%,${l}%)`}
+
+function reset(){
+  stack=[{x:0,z:0,w:BASE,d:BASE,y:0,i:0}];nextI=0;
+  debris=[];score=0;combo=0;misses=0;missesEl.textContent='';
+  honestScore=null;honestTopI=-1;honestEl.textContent='';
+  resetBtn.style.display='none';choiceEl.style.display='none';camY=0;camTarget=0;axis=0;speed=2.2;perfectFlash=0;
+  hueBase=Math.random()*360;
+  scoreEl.textContent='0';
+  spawn();
+}
+function towerTop(){let m=0;for(const b of stack)m=Math.max(m,b.y+BH);return m}
+function spawn(){
+  const top=stack[stack.length-1];
+  axis^=1;
+  const i=++nextI;
+  cur={x:top.x,z:top.z,w:top.w,d:top.d,y:towerTop(),i,dir:1,t:0};
+  if(axis===0)cur.x=top.x-260;else cur.z=top.z-260;
+  speed=Math.min(2.2+i*0.04,6); // endless: ramps up then caps
+}
+function place(){
+  const k=axis===0?'x':'z', s=axis===0?'w':'d', ko=axis===0?'z':'x', so=axis===0?'d':'w';
+  let top=stack[stack.length-1];
+  if(supportAny&&honestScore!==null){ // only after continuing: block falls until it hits the highest layer under its footprint
+    let bestY=-1;
+    for(const b of stack){
+      const [l,h]=span(cur,b,k,s),[l2,h2]=span(cur,b,ko,so);
+      if(h-l<=0||h2-l2<=0)continue;
+      if(b.y>bestY){bestY=b.y;top=b}
+    }
+  }
+  const delta=cur[k]-top[k];
+  const [lo,hi]=span(cur,top,k,s);
+  const overlap=hi-lo;
+  if(overlap<=0){ // missed completely - never game over
+    debris.push({...cur,vy:0});cur=null;combo=0;
+    misses++;saveBest();
+    if(honestScore===null){ // remember progress before the first continue
+      honestScore=score;honestTopI=stack[stack.length-1].i;
+      honestEl.textContent='Before continue: '+score;
+    }
+    missesEl.textContent=misses+(misses===1?' miss':' misses');
+    resetBtn.style.display='block';
+    if(misses===1){state='choice';choiceEl.style.display='flex';}
+    else spawn(); // later misses: just keep going
+    return;
+  }
+  if(Math.abs(delta)<4){ // perfect
+    cur[k]=top[k];cur[s]=Math.min(cur[s],top[s]);combo++;perfectFlash=1;
+    if(combo>=3){ // reward: grow back a bit
+      cur[s]=Math.min(BASE,cur[s]+10);
+    }
+  }else{
+    combo=0;
+    const cLo=cur[k]-cur[s]/2,cHi=cur[k]+cur[s]/2;
+    for(const [a,b] of [[cLo,lo],[hi,cHi]]){ // slice off overhang on either side
+      if(b-a>0.5){const cut={...cur,vy:0};cut[s]=b-a;cut[k]=(a+b)/2;debris.push(cut)}
+    }
+    cur[s]=overlap;cur[k]=(lo+hi)/2;
+  }
+  // trim the other axis too (only matters when landing on an older layer)
+  const [l2,h2]=span(cur,top,ko,so);
+  if(h2-l2<cur[so]-0.5){cur[so]=h2-l2;cur[ko]=(l2+h2)/2}
+  // rest on the support layer (falls down if it was an older, lower layer)
+  stack.push({x:cur.x,z:cur.z,w:cur.w,d:cur.d,y:top.y+BH,ry:cur.y,vy:0,i:cur.i});
+  score++;scoreEl.textContent=score;
+  camTarget=Math.max(0,towerTop()-8*BH);
+  // keep memory bounded for endless play: drop the lowest non-base layer
+  if(stack.length>150){let li=1;for(let j=2;j<stack.length-1;j++)if(stack[j].y<stack[li].y)li=j;stack.splice(li,1)}
+  spawn();
+}
+function saveBest(){
+  const s=honestScore!==null?honestScore:score; // only pre-continue progress counts
+  if(s>best){best=s;try{localStorage.setItem('stackupBest',best)}catch(e){}}
+  bestEl.textContent='Best '+best;
+}
+
+function drawBlock(b,alpha=1){
+  const {x,z,w,d,y,i}=b;
+  const x0=x-w/2,x1=x+w/2,z0=z-d/2,z1=z+d/2,yt=y+BH;
+  const P=(a,h,c)=>iso(a,h,c);
+  ctx.globalAlpha=alpha;
+  // top
+  poly([P(x0,yt,z0),P(x1,yt,z0),P(x1,yt,z1),P(x0,yt,z1)],color(i,62));
+  // right (x+ face)
+  poly([P(x1,yt,z0),P(x1,yt,z1),P(x1,y,z1),P(x1,y,z0)],color(i,48));
+  // left (z+ face)
+  poly([P(x0,yt,z1),P(x1,yt,z1),P(x1,y,z1),P(x0,y,z1)],color(i,38));
+  ctx.globalAlpha=1;
+}
+function poly(pts,fill){ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(2,(now-last)/16.67);last=now;
+  camY+=(camTarget-camY)*0.1*dt;
+  if(state==='play'&&cur){
+    const k=axis===0?'x':'z';
+    const top=stack[stack.length-1];
+    cur[k]+=cur.dir*speed*dt;
+    if(cur[k]-top[k]>260)cur.dir=-1;
+    if(cur[k]-top[k]<-260)cur.dir=1;
+  }
+  for(const p of debris){p.vy+=0.5*dt;p.y-=p.vy*dt}
+  debris=debris.filter(p=>p.y>camY-H);
+
+  // background
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,`hsl(${(hueBase+stack.length*6)%360},40%,22%)`);
+  g.addColorStop(1,`hsl(${(hueBase+stack.length*6+40)%360},40%,10%)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  for(const b of stack){ // fall animation toward resting height
+    if(b.ry===undefined)b.ry=b.y;
+    if(b.ry>b.y){b.vy+=0.8*dt;b.ry=Math.max(b.y,b.ry-b.vy*dt)}
+  }
+  // painter's order: lower layers first, then back-to-front
+  const order=stack.slice().sort((a,b)=>(a.y-b.y)||((a.x+a.z)-(b.x+b.z)));
+  for(const b of order)drawBlock({...b,y:b.ry});
+  if(cur&&state!=='menu')drawBlock(cur);
+  for(const p of debris)drawBlock(p,0.85);
+
+  if(honestScore!==null){ // gold outline on the last layer placed before continuing, drawn over everything
+    const hb=stack.find(b=>b.i===honestTopI);
+    if(hb){
+      const {x,z,w,d,y}=hb,yt=y+BH;
+      const pts=[iso(x-w/2,yt,z-d/2),iso(x+w/2,yt,z-d/2),iso(x+w/2,yt,z+d/2),iso(x-w/2,yt,z+d/2)];
+      ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();
+      ctx.strokeStyle='#ffd23f';ctx.lineWidth=3;ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
+      const [lx,ly]=pts[1];
+      ctx.fillStyle='#ffd23f';ctx.font='bold 14px system-ui';ctx.textAlign='left';
+      const txt='◀ '+honestScore+' before continue',tw=ctx.measureText(txt).width;
+      const tx=Math.min(lx+8,W-tw-8);
+      ctx.strokeStyle='#000a';ctx.lineWidth=4;ctx.strokeText(txt,tx,ly+4);ctx.fillText(txt,tx,ly+4);
+    }
+  }
+  if(perfectFlash>0){
+    const t=stack[stack.length-1];
+    const [sx,sy]=iso(t.x,t.y+BH,t.z);
+    ctx.fillStyle=`rgba(255,255,255,${perfectFlash})`;
+    ctx.font='bold 20px system-ui';ctx.textAlign='center';
+    ctx.fillText(combo>=3?'PERFECT x'+combo:'PERFECT',sx,sy-40-(1-perfectFlash)*20);
+    perfectFlash-=0.02*dt;
+  }
+  requestAnimationFrame(loop);
+}
+
+function tap(e){
+  e.preventDefault();
+  if(state==='menu'){reset();state='play';msgEl.textContent='';return}
+  if(state==='play')place();
+}
+function startOver(){saveBest();reset();state='play';msgEl.textContent=''}
+cv.addEventListener('pointerdown',tap);
+addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='choice'){choiceEl.style.display='none';state='play';spawn()}else tap(e)}});
+document.getElementById('contBtn').addEventListener('click',()=>{choiceEl.style.display='none';state='play';spawn()});
+document.getElementById('restartBtn').addEventListener('click',startOver);
+resetBtn.addEventListener('click',startOver);
+
+reset();state='menu';cur=null;
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
