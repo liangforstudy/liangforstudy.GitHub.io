@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character Creator</title>
+<style>
+:root{
+  --bg:#f4f1ea; --panel:#ffffff; --ink:#2b2a33; --muted:#6f6d7a; --line:#e2ded4;
+  --accent:#ff7a59; --accent-ink:#fff; --accent2:#4fb3bf; --ok:#4caf7d; --warn:#e3a008; --bad:#e05252;
+  --surface:#ffffff; --hover:#f6f4ef; --sel:#eef8f9; --check:#e9e6de; --stage:#fffdf7; --toast:#2b2a33; --toast-ink:#fff;
+  --radius:14px; --shadow:0 4px 18px rgba(30,20,10,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:6px 10px}
+button:hover{background:var(--hover)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+button.primary:hover{filter:brightness(1.05)}
+button.small{padding:3px 7px;font-size:12px}
+button.icon{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+button.active{background:var(--accent2);color:#fff;border-color:transparent}
+button.danger{color:var(--bad)}
+input[type=text],input[type=number],select{font:inherit;font-size:16px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);max-width:100%}
+input[type=number]{width:70px}
+input[type=color]{width:32px;height:32px;border:none;padding:0;background:none;cursor:pointer}
+label.small{font-size:12px;color:var(--muted)}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 8px}
+h2:first-child{margin-top:0}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.muted{color:var(--muted);font-size:12px}
+.hidden{display:none!important}
+
+#app{display:grid;grid-template-rows:auto 1fr;height:100%}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header .title{font-weight:700;font-size:18px}
+header input#projName{font-weight:600;font-size:15px;min-width:180px}
+
+/* ---------- layout ---------- */
+main{display:grid;grid-template-columns:300px 1fr 300px;min-height:0}
+.panel{background:var(--panel);overflow:auto;padding:12px;border-right:1px solid var(--line)}
+.panel.right{border-right:none;border-left:1px solid var(--line)}
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0}
+.toolbar{display:flex;gap:6px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;min-height:48px}
+.canvasWrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;
+  background-image:linear-gradient(45deg,var(--check) 25%,transparent 25%),linear-gradient(-45deg,var(--check) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--check) 75%),linear-gradient(-45deg,transparent 75%,var(--check) 75%);
+  background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
+.canvasWrap canvas{max-width:100%;max-height:100%;background:transparent;image-rendering:auto}
+#stageCanvas{position:relative;z-index:1}
+#overlayCanvas{position:absolute;z-index:2;pointer-events:none}
+.canvasWrap.moveMode #stageCanvas{cursor:move}
+.canvasWrap.paintMode #stageCanvas{cursor:crosshair}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);text-align:center;padding:40px;font-size:15px;z-index:3;pointer-events:none}
+
+/* ---------- lists ---------- */
+.list{display:flex;flex-direction:column;gap:4px}
+.item{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.item.sel{border-color:var(--accent2);background:var(--sel)}
+.item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item input[type=text]{flex:1;min-width:0}
+.thumb{width:40px;height:40px;object-fit:contain;border:1px solid var(--line);border-radius:6px;background:
+  repeating-conic-gradient(var(--check) 0 25%,var(--surface) 0 50%) 0 0/10px 10px}
+.flag{font-size:11px;color:var(--warn)}
+.flag.ok{color:var(--ok)}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);cursor:pointer;position:relative}
+.sw.sel{box-shadow:0 0 0 3px var(--accent)}
+.sw .x{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--bad);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;line-height:1}
+.sw:hover .x{display:flex}
+@media (hover:none){.sw .x{display:flex}}
+button.armed{background:var(--bad);color:#fff;border-color:transparent;width:auto;padding:0 8px;font-size:12px}
+.item .nameText{cursor:pointer}
+.item{min-height:44px}
+.item .icon{min-width:30px}
+.card{border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;background:var(--surface)}
+.card h3{margin:0 0 8px;font-size:14px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- play mode ---------- */
+main.play{grid-template-columns:280px 1fr 320px}
+.play .panel{padding:16px}
+.cycler{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:var(--surface);border:1px solid var(--line);margin-bottom:8px}
+.cycler .lbl{flex:1;font-weight:600}
+.cycler .cnt{font-size:12px;color:var(--muted)}
+.cycler button{width:36px;height:36px;border-radius:50%;font-size:18px;padding:0}
+.regionCard{margin-bottom:12px}
+.regionCard .rname{font-weight:600;margin-bottom:6px}
+.bigbtn{width:100%;padding:12px;font-size:16px;font-weight:700;border-radius:14px;margin-top:8px}
+.nameField{margin-bottom:10px}
+.nameField label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.nameField input{width:100%;font-size:16px;padding:8px 10px}
+.play .canvasWrap{background-color:var(--stage)}
+/* ---------- scratch card ---------- */
+.budget{font-weight:800;font-size:18px;color:var(--ok)}
+.budget.amber{color:var(--warn)}
+.budget.red{color:var(--bad)}
+/* ---------- welcome ---------- */
+main.welcome{display:flex;align-items:center;justify-content:center;padding:24px;min-height:0}
+.welcomeCard{background:var(--panel);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:32px 28px;max-width:460px;width:100%;text-align:center}
+.welcomeCard .wIcon{font-size:52px;line-height:1}
+.welcomeCard h1{font-size:26px;margin:10px 0 4px}
+.welcomeCard .wLead{color:var(--muted);margin:0 0 20px}
+.drop.big{padding:28px 18px;border-radius:16px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.drop.big strong{font-size:17px;color:var(--ink)}
+.drop.big.over strong{color:var(--accent)}
+button.linkish{border:none;background:none;color:var(--muted);text-decoration:underline;margin-top:16px;padding:8px}
+button.linkish:hover{background:none;color:var(--ink)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--toast);color:var(--toast-ink);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+@media (max-width:900px){
+  html,body,#app{height:auto;min-height:100%}
+  #app{display:block}
+  header{flex-wrap:wrap;position:sticky;top:0;z-index:5}
+  header .title{font-size:16px}
+  header input#projName{min-width:0;flex:1 1 120px}
+  header .spacer{flex-basis:100%;height:0;margin:0}
+  header .title{flex:1 1 100%}
+  main,main.play{display:block;overflow-x:hidden}
+  .panel{max-height:none;overflow:visible;border:none;border-bottom:1px solid var(--line)}
+  .panel.right{border-top:1px solid var(--line);border-bottom:none}
+  .stage{border-bottom:1px solid var(--line)}
+  .canvasWrap{height:52vh;min-height:260px}
+  .toolbar{position:static}
+  input[type=text],input[type=number],select{font-size:16px}
+  input[type=number]{width:64px}
+}
+
+/* ---------- dark theme: follows the system unless the user picks one ---------- */
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#17161c; --panel:#1f1e26; --surface:#26252e; --hover:#302f3a; --sel:#16343a; --ink:#ecebf1; --muted:#9d9bab; --line:#3a3845;
+  --check:#2c2b34; --stage:#1c1b22; --toast:#ecebf1; --toast-ink:#17161c; --shadow:0 4px 18px rgba(0,0,0,.45); color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#17161c; --panel:#1f1e26; --surface:#26252e; --hover:#302f3a; --sel:#16343a; --ink:#ecebf1; --muted:#9d9bab; --line:#3a3845;
+  --check:#2c2b34; --stage:#1c1b22; --toast:#ecebf1; --toast-ink:#17161c; --shadow:0 4px 18px rgba(0,0,0,.45); color-scheme:dark; }
+:root[data-theme="light"]{ color-scheme:light; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="title">🎨 Character Creator</span>
+    <input type="text" id="projName" placeholder="Project name">
+    <span class="muted" id="saveStatus"></span>
+    <span class="spacer"></span>
+    <button id="btnMode" class="primary">▶ Play</button>
+    <button id="btnOpen" class="hidden">📂 Open another project</button>
+    <button id="btnExport">⬇ Export project</button>
+    <button id="btnImport">⬆ Import</button>
+    <button id="btnNew" class="danger">New</button>
+    <button id="btnTheme" class="icon" title="Switch light / dark theme" aria-label="Switch light / dark theme">🌙</button>
+    <input type="file" id="fileImport" accept="application/json" class="hidden">
+    <input type="file" id="filePng" accept="image/png,image/webp,image/gif" multiple class="hidden">
+  </header>
+
+  <!-- =================== WELCOME =================== -->
+  <main id="welcomeMain" class="welcome hidden">
+    <div class="welcomeCard">
+      <div class="wIcon">🎨</div>
+      <h1>Character Creator</h1>
+      <p class="wLead">Open a project to start making characters.</p>
+      <div class="drop big" id="dropProject">
+        <strong>📂 Choose a project file</strong>
+        <span class="muted">or drop a .creator.json here</span>
+      </div>
+      <button class="linkish" id="btnNewFromWelcome">Build a new project from scratch (advanced)</button>
+    </div>
+  </main>
+
+  <!-- =================== EDIT MODE =================== -->
+  <main id="editMain">
+    <aside class="panel left">
+      <h2>Layers (slots)</h2>
+      <div class="list" id="slotList"></div>
+      <div class="row" style="margin-top:8px"><button id="btnAddSlot" class="primary">+ Add slot</button></div>
+
+      <div id="slotDetail" class="hidden">
+        <h2>Variants of <span id="slotDetailName"></span></h2>
+        <div class="drop" id="dropVariants">Click or drop PNGs here to add variants</div>
+        <div class="list" id="variantList" style="margin-top:8px"></div>
+      </div>
+    </aside>
+
+    <section class="stage">
+      <div class="toolbar" id="editToolbar">
+        <span class="muted" id="editHint">Select a slot, then a variant to edit it.</span>
+        <div id="toolGroup" class="row hidden">
+          <button data-tool="move" class="tool active" title="Drag the layer to reposition">✥ Move</button>
+          <button data-tool="wand" class="tool" title="Click a colour area to select it">✨ Wand</button>
+          <button data-tool="brush" class="tool" title="Paint a region">🖌 Brush</button>
+          <button data-tool="erase" class="tool" title="Erase from region">🧽 Erase</button>
+          <label class="small">Region <select id="activeRegion"></select></label>
+          <label class="small" id="brushSizeWrap">Size <input type="number" id="brushSize" value="20" min="1" max="200"></label>
+          <label class="small" id="tolWrap">Tolerance <input type="number" id="wandTol" value="40" min="0" max="255"></label>
+          <label class="small"><input type="checkbox" id="showMask" checked> Show region</label>
+          <label class="small">Preview <input type="checkbox" id="previewColors" checked></label>
+          <button id="btnClearRegion" class="small">Clear region on this variant</button>
+        </div>
+      </div>
+      <div class="canvasWrap" id="editCanvasWrap">
+        <canvas id="stageCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+        <div class="empty" id="editEmpty">Add a slot and upload some PNGs to get started.</div>
+      </div>
+    </section>
+
+    <aside class="panel right">
+      <div class="card" id="scratchCard">
+        <h3>🐱 Scratch export</h3>
+        <label class="row" style="font-size:15px"><input type="checkbox" id="scratchMode"> <b>Scratch mode</b></label>
+        <div class="muted" style="margin-top:4px">Limits play mode to what Scratch can do (palette swatches only, no custom colour picker) and lets you export a playable .sb3 project.</div>
+        <div id="scratchInfo" class="hidden" style="margin-top:8px">
+          <div class="row"><span class="budget" id="sbCount"></span><span class="muted" id="sbScale"></span></div>
+          <div id="sbWarn" style="margin-top:4px"></div>
+          <button id="btnSb3" class="primary" style="margin-top:8px;width:100%">⬇ Export .sb3</button>
+        </div>
+      </div>
+
+      <div id="variantProps" class="card hidden">
+        <h3>Selected variant</h3>
+        <div class="row"><input type="text" id="varName" placeholder="Variant name" style="flex:1"></div>
+        <div class="row" style="margin-top:6px">
+          <label class="small">X <input type="number" id="varX"></label>
+          <label class="small">Y <input type="number" id="varY"></label>
+          <button class="small" id="btnResetPos">Reset</button>
+        </div>
+        <div class="muted" style="margin-top:6px">Tip: use the Move tool and drag on the canvas, or the arrow keys.</div>
+        <div id="varFlags" style="margin-top:6px"></div>
+      </div>
+
+      <div id="regionsCard" class="card hidden">
+        <h3>Regions of <span id="regionsSlotName"></span></h3>
+        <div class="muted" style="margin-bottom:6px">Regions are shared by every variant in this slot. Each variant needs its own mask (use Wand/Brush, or Auto-match).</div>
+        <div class="list" id="regionList"></div>
+        <div class="row" style="margin-top:8px"><button id="btnAddRegion" class="primary small">+ Add region</button>
+      <button id="btnAutoAll" class="small" title="Assigns every pixel of every variant to the nearest auto-match colour. Handles soft edges between two placeholder colours.">✨ Auto-match all (nearest colour)</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Colour sets</h3>
+        <div id="colorSetList"></div>
+        <div class="row" style="margin-top:8px"><button id="btnAddColorSet" class="primary small">+ Add colour set</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Name fields (play mode)</h3>
+        <div class="muted" style="margin-bottom:6px">Text boxes the player can fill in, e.g. "Name", "Favourite food".</div>
+        <div class="list" id="fieldList"></div>
+        <div class="row" style="margin-top:8px"><button id="btnAddField" class="primary small">+ Add field</button></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- =================== PLAY MODE =================== -->
+  <main id="playMain" class="play hidden">
+    <aside class="panel left">
+      <h2>Parts</h2>
+      <div id="playSlots"></div>
+      <button class="bigbtn" id="btnRandom">🎲 Randomise</button>
+    </aside>
+    <section class="stage">
+      <div class="toolbar">
+        <span style="font-weight:700;font-size:16px" id="playTitle"></span>
+        <span class="spacer"></span>
+        <button id="btnDownload">⬇ Save picture</button>
+      </div>
+      <div class="canvasWrap"><canvas id="playCanvas"></canvas></div>
+    </section>
+    <aside class="panel right">
+      <div id="playFields"></div>
+      <h2>Colours</h2>
+      <div id="playRegions"></div>
+    </aside>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Utilities
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
+function el(tag, attrs={}, ...kids){
+  const e=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==='class') e.className=v; else if(k==='style') e.style.cssText=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2), v); else if(k==='html') e.innerHTML=v; else e.setAttribute(k,v);
+  }
+  for(const k of kids){ if(k==null) continue; e.append(k.nodeType?k:document.createTextNode(k)); }
+  return e;
+}
+/* two-tap delete button: first tap arms it ("Sure?"), second tap within 3s fires */
+function delBtn(onConfirm, opts={}){
+  const b=el('button',{class:'icon small danger'+(opts.class?' '+opts.class:''),title:opts.title||'Delete'},'✕');
+  b.addEventListener('click',e=>{ e.stopPropagation(); if(b.dataset.armed){ clearTimeout(b._t); onConfirm(); return; }
+    b.dataset.armed='1'; b.textContent='Sure?'; b.classList.add('armed'); b._t=setTimeout(()=>{ delete b.dataset.armed; b.textContent='✕'; b.classList.remove('armed'); },3000); });
+  return b;
+}
+/* name label that turns into an input when the pencil is tapped */
+function nameCell(getName, onSave){
+  const wrap=el('span',{class:'name'}); const label=el('span',{class:'nameText'},getName());
+  const pencil=el('button',{class:'icon small',title:'Rename'},'✎');
+  pencil.addEventListener('click',e=>{ e.stopPropagation(); const inp=el('input',{type:'text',value:getName()}); inp.addEventListener('click',ev=>ev.stopPropagation());
+    const done=()=>{ if(inp.value.trim()) onSave(inp.value.trim()); label.textContent=getName(); inp.replaceWith(label); };
+    inp.addEventListener('change',done); inp.addEventListener('blur',done); inp.addEventListener('keydown',ev=>{ if(ev.key==='Enter') inp.blur(); });
+    label.replaceWith(inp); inp.focus(); inp.select(); });
+  wrap.append(label); return [wrap,pencil];
+}
+function hexToRgb(h){ h=h.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join(''); }
+function rgbToHsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b); let h=0,s=0; const l=(mx+mn)/2;
+  if(mx!==mn){ const d=mx-mn; s=l>.5?d/(2-mx-mn):d/(mx+mn);
+    switch(mx){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;case b:h=(r-g)/d+4;} h/=6; }
+  return [h,s,l]; }
+function hslToRgb(h,s,l){ let r,g,b; if(s===0){r=g=b=l;} else { const q=l<.5?l*(1+s):l+s-l*s, p=2*l-q;
+  const f=t=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+  r=f(h+1/3);g=f(h);b=f(h-1/3);} return [r*255,g*255,b*255]; }
+
+/* ---- binary mask RLE (alternating run lengths starting with a 0-run), base64 ---- */
+function encodeMask(mask){
+  const runs=[]; let cur=0,len=0;
+  for(let i=0;i<mask.length;i++){ const v=mask[i]?1:0; if(v===cur) len++; else { runs.push(len); cur=v; len=1; } }
+  runs.push(len);
+  const bytes=[]; for(let n of runs){ while(n>=128){ bytes.push((n&127)|128); n>>>=7; } bytes.push(n); }
+  let s=''; const u=new Uint8Array(bytes); for(let i=0;i<u.length;i+=8192) s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));
+  return btoa(s);
+}
+function decodeMask(b64,len){
+  const s=atob(b64); const mask=new Uint8Array(len); let pos=0,cur=0,i=0;
+  while(i<s.length){ let n=0,shift=0,byte; do{ byte=s.charCodeAt(i++); n|=(byte&127)<<shift; shift+=7; }while(byte&128);
+    if(cur) mask.fill(1,pos,pos+n); pos+=n; cur^=1; }
+  return mask;
+}
+
+/* ---- IndexedDB autosave ---- */
+const DB={ open(){ return new Promise((res,rej)=>{ const r=indexedDB.open('charcreator',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+  async get(k){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('kv').objectStore('kv').get(k); t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error); }); },
+  async set(k,v){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('kv','readwrite').objectStore('kv').put(v,k); t.onsuccess=()=>res(); t.onerror=()=>rej(t.error); }); } };
+
+/* ============================================================
+   Project model
+   ============================================================ */
+let P; // project
+const RT={ images:{}, masks:{}, layerCache:{} }; // runtime caches keyed by variant id
+
+function newProject(){ return { version:1, name:'My Creator', slots:[], colorSets:[], fields:[], mode:'edit', scratchMode:false, play:{ variant:{}, colors:{}, fields:{} } }; }
+
+function serialize(){
+  const out=JSON.parse(JSON.stringify(P));
+  for(const s of out.slots) for(const v of s.variants){ v.masks={}; const m=RT.masks[v.id]||{}; for(const rid in m) v.masks[rid]=encodeMask(m[rid]); }
+  return out;
+}
+async function loadImages(){
+  for(const s of P.slots) for(const v of s.variants){
+    if(!RT.images[v.id]) await loadVariantImage(v);
+    RT.masks[v.id]={}; for(const rid in (v.masks||{})) RT.masks[v.id][rid]=decodeMask(v.masks[rid], v.w*v.h);
+  }
+}
+function loadVariantImage(v){ return new Promise(res=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement('canvas'); c.width=v.w=img.width; c.height=v.h=img.height; c.getContext('2d').drawImage(img,0,0);
+  RT.images[v.id]={ canvas:c, data:c.getContext('2d').getImageData(0,0,c.width,c.height) }; res(); }; img.onerror=()=>res(); img.src=v.src; }); }
+
+let saveTimer=null;
+function save(){ $('#saveStatus').textContent='saving…'; clearTimeout(saveTimer); saveTimer=setTimeout(async()=>{
+  try{ await DB.set('project', serialize()); $('#saveStatus').textContent='saved'; }catch(e){ $('#saveStatus').textContent='⚠ not saved (storage full?) - export your project'; console.error(e); }
+},400); }
+function invalidate(vid){ if(vid) delete RT.layerCache[vid]; else RT.layerCache={}; }
+
+/* ============================================================
+   Compositing
+   ============================================================ */
+function canvasSize(){ let w=1,h=1; for(const s of P.slots) for(const v of s.variants){ w=Math.max(w,v.w||1); h=Math.max(h,v.h||1);} return [w,h]; }
+function regionBaseL(v, rid){ // mean lightness of the masked area in the source image
+  const key=rid+'_baseL'; const cache=(RT.layerCache[v.id+'_meta']??={}); if(cache[key]!=null) return cache[key];
+  const d=RT.images[v.id].data.data, m=RT.masks[v.id]?.[rid]; let sum=0,n=0;
+  if(m) for(let i=0;i<m.length;i++) if(m[i]&&d[i*4+3]>0){ sum+=rgbToHsl(d[i*4],d[i*4+1],d[i*4+2])[2]; n++; }
+  return cache[key]= n? sum/n : .5;
+}
+function colorFor(slot, region){
+  const set=P.colorSets.find(c=>c.id===region.colorSetId), chosen=P.play.colors[region.id];
+  if(chosen && (!P.scratchMode || set?.colors.includes(chosen))) return chosen; // Scratch mode: palette colours only
+  return set?.colors[0] ?? null;
+}
+
+function renderLayer(slot, v, opts={}){ // returns a canvas with the variant recoloured by current play colours
+  const key=JSON.stringify(slot.regions.map(r=>[r.id, opts.preview===false?null:colorFor(slot,r)]));
+  const c=RT.layerCache[v.id]; if(c && c.key===key) return c.canvas;
+  const src=RT.images[v.id]; if(!src) return null;
+  const out=document.createElement('canvas'); out.width=v.w; out.height=v.h; const ctx=out.getContext('2d');
+  const img=new ImageData(new Uint8ClampedArray(src.data.data), v.w, v.h); const d=img.data;
+  if(opts.preview!==false) for(const r of slot.regions){
+    const col=colorFor(slot,r), m=RT.masks[v.id]?.[r.id]; if(!col||!m) continue;
+    const [th,ts,tl]=rgbToHsl(...hexToRgb(col)); const baseL=regionBaseL(v,r.id);
+    for(let i=0;i<m.length;i++){ if(!m[i]||d[i*4+3]===0) continue; const p=i*4;
+      const L=rgbToHsl(d[p],d[p+1],d[p+2])[2]; const nl=clamp(tl+(L-baseL),0,1);
+      const [nr,ng,nb]=hslToRgb(th,ts,nl); d[p]=nr; d[p+1]=ng; d[p+2]=nb; }
+  }
+  ctx.putImageData(img,0,0); RT.layerCache[v.id]={key,canvas:out}; return out;
+}
+function activeVariant(slot){ if(!slot.variants.length) return null; const i=P.play.variant[slot.id]; return slot.variants[clamp(i??0,0,slot.variants.length-1)]; }
+function composite(canvas, opts={}){
+  const [W,H]=canvasSize(); if(canvas.width!==W||canvas.height!==H){ canvas.width=W; canvas.height=H; }
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const slots=[...P.slots].sort((a,b)=>a.z-b.z);
+  for(const s of slots){ if(P.play.hidden?.[s.id]) continue; const v=opts.variantFor?.(s) ?? activeVariant(s); if(!v) continue;
+    const layer=renderLayer(s,v,opts); if(layer) ctx.drawImage(layer, v.x||0, v.y||0); }
+  fitCanvas(canvas);
+}
+function fitCanvas(canvas){ const wrap=canvas.parentElement; const pad=24; const sc=Math.min((wrap.clientWidth-pad)/canvas.width,(wrap.clientHeight-pad)/canvas.height);
+  if(!isFinite(sc)||sc<=0) return; canvas.style.width=Math.floor(canvas.width*sc)+'px'; canvas.style.height=Math.floor(canvas.height*sc)+'px'; }
+window.addEventListener('resize',()=>{ fitCanvas($('#stageCanvas')); fitCanvas($('#playCanvas')); });
+
+/* ============================================================
+   EDIT MODE
+   ============================================================ */
+const E={ slotId:null, varId:null, tool:'move', regionId:null, painting:false, drag:null };
+const curSlot=()=>P.slots.find(s=>s.id===E.slotId)||null;
+const curVar=()=>curSlot()?.variants.find(v=>v.id===E.varId)||null;
+
+function renderEdit(){ renderSlotList(); renderVariantList(); renderRegions(); renderColorSets(); renderFields(); renderVariantProps(); renderToolbar(); renderScratchCard(); drawEdit(); }
+
+function renderSlotList(){
+  const list=$('#slotList'); list.innerHTML='';
+  const sorted=[...P.slots].sort((a,b)=>b.z-a.z); // top layer first
+  if(!sorted.length) list.append(el('div',{class:'muted'},'No slots yet. A slot is a part like Head, Body, Wings.'));
+  sorted.forEach((s,i)=>{
+    const item=el('div',{class:'item'+(s.id===E.slotId?' sel':''), onclick:()=>{ E.slotId=s.id; E.varId=s.variants[0]?.id||null; E.regionId=s.regions[0]?.id||null; renderEdit(); }});
+    const [name,pencil]=nameCell(()=>s.name, n=>{ s.name=n; save(); renderEdit(); });
+    const up=el('button',{class:'icon small',title:'Move up (in front)', onclick:e=>{ e.stopPropagation(); if(i>0){ const o=sorted[i-1]; [s.z,o.z]=[o.z,s.z]; save(); renderEdit(); } }},'▲');
+    const dn=el('button',{class:'icon small',title:'Move down (behind)', onclick:e=>{ e.stopPropagation(); if(i<sorted.length-1){ const o=sorted[i+1]; [s.z,o.z]=[o.z,s.z]; save(); renderEdit(); } }},'▼');
+    const opt=el('label',{class:'small',title:'Player can turn this part off'},el('input',{type:'checkbox',onclick:e=>e.stopPropagation(),onchange:e=>{ s.optional=e.target.checked; save(); }}),'opt');
+    opt.querySelector('input').checked=!!s.optional;
+    const del=delBtn(()=>{ P.slots=P.slots.filter(x=>x!==s); if(E.slotId===s.id){E.slotId=null;E.varId=null;} save(); renderEdit(); },{title:'Delete slot'});
+    item.append(name, el('span',{class:'muted'},`${s.variants.length}`), pencil, up, dn, opt, del); list.append(item);
+  });
+}
+function addSlot(){ const z=P.slots.length? Math.max(...P.slots.map(s=>s.z))+1 : 0; const s={id:uid(),name:'Slot '+(P.slots.length+1),z,regions:[],variants:[],optional:false}; P.slots.push(s); E.slotId=s.id; E.varId=null; save(); renderEdit(); }
+
+function renderVariantList(){
+  const s=curSlot(); $('#slotDetail').classList.toggle('hidden',!s); if(!s) return;
+  $('#slotDetailName').textContent=s.name; const list=$('#variantList'); list.innerHTML='';
+  s.variants.forEach((v,i)=>{
+    const item=el('div',{class:'item'+(v.id===E.varId?' sel':''), onclick:()=>{ E.varId=v.id; renderEdit(); }});
+    const img=el('img',{class:'thumb',src:v.src});
+    const missing=s.regions.filter(r=>!RT.masks[v.id]?.[r.id]).length;
+    const flag=el('span',{class:'flag'+(missing?'':' ok')}, s.regions.length? (missing?`${missing} region${missing>1?'s':''} unmasked`:'✓ all regions'):'');
+    const up=el('button',{class:'icon small',onclick:e=>{e.stopPropagation(); if(i>0){[s.variants[i-1],s.variants[i]]=[s.variants[i],s.variants[i-1]]; save(); renderEdit();}}},'▲');
+    const dn=el('button',{class:'icon small',onclick:e=>{e.stopPropagation(); if(i<s.variants.length-1){[s.variants[i+1],s.variants[i]]=[s.variants[i],s.variants[i+1]]; save(); renderEdit();}}},'▼');
+    const del=delBtn(()=>{ s.variants=s.variants.filter(x=>x!==v); delete RT.images[v.id]; delete RT.masks[v.id]; if(E.varId===v.id) E.varId=s.variants[0]?.id||null; save(); renderEdit(); },{title:'Delete variant'});
+    const [name,pencil]=nameCell(()=>v.name, n=>{ v.name=n; save(); renderEdit(); });
+    item.append(img, el('div',{class:'name',style:'display:flex;flex-direction:column;gap:2px'}, name, flag), pencil, up, dn, del); list.append(item);
+  });
+}
+async function addVariantFiles(files){
+  const s=curSlot(); if(!s) return toast('Select a slot first');
+  for(const f of files){ if(!f.type.startsWith('image/')) continue;
+    const src=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); });
+    const v={id:uid(), name:f.name.replace(/\.[^.]+$/,''), src, w:0,h:0, x:0,y:0, masks:{}};
+    await loadVariantImage(v); RT.masks[v.id]={}; s.variants.push(v);
+    for(const r of s.regions) if(r.autoColor) autoMatch(s, r, v);
+    E.varId=v.id;
+  }
+  save(); renderEdit();
+}
+
+/* ---- regions ---- */
+function renderRegions(){
+  const s=curSlot(); $('#regionsCard').classList.toggle('hidden',!s); if(!s) return;
+  $('#regionsSlotName').textContent=s.name; const list=$('#regionList'); list.innerHTML='';
+  if(!s.regions.length) list.append(el('div',{class:'muted'},'No regions. Add one to make part of this slot recolourable.'));
+  for(const r of s.regions){
+    const box=el('div',{class:'item'+(r.id===E.regionId?' sel':''),style:'flex-direction:column;align-items:stretch;gap:6px',onclick:()=>{E.regionId=r.id; renderEdit();}});
+    const row1=el('div',{class:'row'});
+    const [rname,rpencil]=nameCell(()=>r.name, n=>{ r.name=n; save(); renderEdit(); });
+    rname.style.fontWeight='600';
+    row1.append(rname, rpencil,
+      delBtn(()=>{ s.regions=s.regions.filter(x=>x!==r); for(const v of s.variants) delete RT.masks[v.id]?.[r.id]; if(E.regionId===r.id) E.regionId=s.regions[0]?.id||null; invalidate(); save(); renderEdit(); },{title:'Delete region'}));
+    const sel=el('select',{onclick:e=>e.stopPropagation(),onchange:e=>{r.colorSetId=e.target.value; invalidate(); save(); renderEdit();}});
+    sel.append(el('option',{value:''},'(no colour set)')); for(const c of P.colorSets){ const o=el('option',{value:c.id},c.name); if(c.id===r.colorSetId) o.selected=true; sel.append(o); }
+    const row2=el('div',{class:'row'}, el('label',{class:'small'},'Colour set '), sel);
+    const auto=el('input',{type:'color',value:r.autoColor||'#ff00ff',onclick:e=>e.stopPropagation(),oninput:e=>{r.autoColor=e.target.value; save();}});
+    const autoOn=el('input',{type:'checkbox',onclick:e=>e.stopPropagation(),onchange:e=>{ r.autoColor=e.target.checked? auto.value : null; save(); renderEdit(); }}); autoOn.checked=!!r.autoColor;
+    const tol=el('input',{type:'number',value:r.autoTol??40,min:0,max:255,style:'width:56px',onclick:e=>e.stopPropagation(),onchange:e=>{r.autoTol=+e.target.value; save();}});
+    const applyBtn=el('button',{class:'small',title:'Rebuild the mask for this region on every variant from the placeholder colour',onclick:e=>{e.stopPropagation(); if(!r.autoColor) return toast('Turn on auto-match first'); for(const v of s.variants) autoMatch(s,r,v); invalidate(); save(); renderEdit(); toast('Auto-matched on all variants');}},'Apply to all');
+    const row3=el('div',{class:'row'}, el('label',{class:'small',title:'If your PNGs use a flat placeholder colour for this region, it can be detected automatically'},autoOn,' Auto-match colour '), auto, el('label',{class:'small'},'± ',tol), applyBtn);
+    box.append(row1,row2,row3); list.append(box);
+  }
+}
+function addRegion(){ const s=curSlot(); if(!s) return; const r={id:uid(),name:'Region '+(s.regions.length+1),colorSetId:P.colorSets[0]?.id||'',autoColor:null,autoTol:40}; s.regions.push(r); E.regionId=r.id; save(); renderEdit(); }
+function autoMatch(slot, r, v){
+  const img=RT.images[v.id]; if(!img) return; const d=img.data.data, n=v.w*v.h, mask=new Uint8Array(n);
+  const [tr,tg,tb]=hexToRgb(r.autoColor); const tol=r.autoTol??40; let any=false;
+  for(let i=0;i<n;i++){ const p=i*4; if(d[p+3]===0) continue; if(Math.abs(d[p]-tr)+Math.abs(d[p+1]-tg)+Math.abs(d[p+2]-tb) <= tol){ mask[i]=1; any=true; } }
+  (RT.masks[v.id]??={}); if(any) RT.masks[v.id][r.id]=mask; else delete RT.masks[v.id][r.id];
+  invalidate(v.id); delete RT.layerCache[v.id+'_meta'];
+}
+
+function autoMatchNearest(slot){ // every opaque pixel -> nearest auto-colour region (within 3x the tolerance of that region)
+  const regs=slot.regions.filter(r=>r.autoColor).map(r=>({r,rgb:hexToRgb(r.autoColor),max:(r.autoTol??40)*3})); if(!regs.length) return false;
+  for(const v of slot.variants){ const img=RT.images[v.id]; if(!img) continue; const d=img.data.data, n=v.w*v.h; const masks=regs.map(()=>new Uint8Array(n)); const any=regs.map(()=>false);
+    for(let i=0;i<n;i++){ const p=i*4; if(d[p+3]===0) continue; let best=-1,bd=1e9;
+      regs.forEach((g,k)=>{ const dist=Math.abs(d[p]-g.rgb[0])+Math.abs(d[p+1]-g.rgb[1])+Math.abs(d[p+2]-g.rgb[2]); if(dist<bd&&dist<=g.max){bd=dist;best=k;} });
+      if(best>=0){ masks[best][i]=1; any[best]=true; } }
+    (RT.masks[v.id]??={}); regs.forEach((g,k)=>{ if(any[k]) RT.masks[v.id][g.r.id]=masks[k]; else delete RT.masks[v.id][g.r.id]; });
+    invalidate(v.id); delete RT.layerCache[v.id+'_meta']; }
+  return true;
+}
+$('#btnAutoAll').onclick=()=>{ const s=curSlot(); if(!s) return; if(!autoMatchNearest(s)) return toast('Turn on auto-match colour on at least one region'); save(); renderEdit(); toast('Auto-matched all regions on every variant'); };
+
+/* ---- colour sets ---- */
+function renderColorSets(){
+  const box=$('#colorSetList'); box.innerHTML='';
+  if(!P.colorSets.length) box.append(el('div',{class:'muted'},'No colour sets yet.'));
+  for(const c of P.colorSets){
+    const wrap=el('div',{style:'margin-bottom:10px'});
+    const [cname,cpencil]=nameCell(()=>c.name, n=>{ c.name=n; save(); renderEdit(); }); cname.style.fontWeight='600';
+    const head=el('div',{class:'row'}, cname, cpencil,
+      delBtn(()=>{ P.colorSets=P.colorSets.filter(x=>x!==c); invalidate(); save(); renderEdit(); },{title:'Delete colour set'}));
+    const sws=el('div',{class:'swatches',style:'margin-top:6px'});
+    c.colors.forEach((col,i)=>{ const sw=el('div',{class:'sw',style:`background:${col}`,title:col}); const x=el('span',{class:'x',onclick:()=>{c.colors.splice(i,1); invalidate(); save(); renderEdit();}},'×'); sw.append(x); sws.append(sw); });
+    const add=el('input',{type:'color',value:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0'),title:'Pick a colour then press +'});
+    const addBtn=el('button',{class:'small',onclick:()=>{ c.colors.push(add.value); invalidate(); save(); renderEdit(); }},'+');
+    sws.append(add,addBtn); wrap.append(head,sws); box.append(wrap);
+  }
+}
+function addColorSet(){ P.colorSets.push({id:uid(),name:'Colours '+(P.colorSets.length+1),colors:['#e74c3c','#f39c12','#f1c40f','#2ecc71','#3498db','#9b59b6','#ffffff','#34495e']}); save(); renderEdit(); }
+
+/* ---- name fields ---- */
+function renderFields(){
+  const list=$('#fieldList'); list.innerHTML='';
+  if(!P.fields.length) list.append(el('div',{class:'muted'},'No fields.'));
+  for(const f of P.fields){ list.append(el('div',{class:'item'}, el('input',{type:'text',value:f.label,placeholder:'Label',onchange:e=>{f.label=e.target.value; save();}}),
+    el('input',{type:'text',value:f.placeholder||'',placeholder:'Hint text',style:'width:90px',onchange:e=>{f.placeholder=e.target.value; save();}}),
+    delBtn(()=>{P.fields=P.fields.filter(x=>x!==f); save(); renderEdit();},{title:'Delete field'}))); }
+}
+
+/* ---- variant props + toolbar ---- */
+function renderVariantProps(){
+  const v=curVar(), s=curSlot(); $('#variantProps').classList.toggle('hidden',!v); if(!v) return;
+  $('#varName').value=v.name; $('#varX').value=v.x||0; $('#varY').value=v.y||0;
+  const flags=$('#varFlags'); flags.innerHTML='';
+  for(const r of s.regions){ const ok=!!RT.masks[v.id]?.[r.id]; flags.append(el('div',{class:'flag'+(ok?' ok':'')}, (ok?'✓ ':'⚠ ')+r.name+(ok?'':' - not defined on this variant'))); }
+}
+function renderToolbar(){
+  const v=curVar(), s=curSlot(); $('#toolGroup').classList.toggle('hidden',!v); $('#editHint').classList.toggle('hidden',!!v);
+  $('#editEmpty').classList.toggle('hidden', P.slots.some(x=>x.variants.length));
+  if(!v) return;
+  const sel=$('#activeRegion'); sel.innerHTML=''; if(!s.regions.length) sel.append(el('option',{value:''},'(add a region first)'));
+  for(const r of s.regions){ const o=el('option',{value:r.id},r.name); if(r.id===E.regionId) o.selected=true; sel.append(o); }
+  if(!s.regions.find(r=>r.id===E.regionId)) E.regionId=s.regions[0]?.id||null;
+  document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===E.tool));
+  $('#brushSizeWrap').classList.toggle('hidden',!(E.tool==='brush'||E.tool==='erase')); $('#tolWrap').classList.toggle('hidden',E.tool!=='wand');
+  const wrap=$('#editCanvasWrap'); wrap.classList.toggle('moveMode',E.tool==='move'); wrap.classList.toggle('paintMode',E.tool!=='move');
+}
+
+/* ---- edit canvas drawing ---- */
+function drawEdit(){
+  const canvas=$('#stageCanvas'), ov=$('#overlayCanvas'); const preview=$('#previewColors').checked;
+  const s=curSlot(), v=curVar();
+  composite(canvas,{ preview, variantFor:(slot)=> slot.id===E.slotId? v : activeVariant(slot) });
+  ov.width=canvas.width; ov.height=canvas.height; const octx=ov.getContext('2d'); octx.clearRect(0,0,ov.width,ov.height);
+  if(v){ // outline of selected layer
+    octx.strokeStyle='rgba(79,179,191,.9)'; octx.lineWidth=2; octx.setLineDash([6,4]); octx.strokeRect((v.x||0)+1,(v.y||0)+1,v.w-2,v.h-2); octx.setLineDash([]);
+    const m=RT.masks[v.id]?.[E.regionId];
+    if(m && $('#showMask').checked){ const id=octx.createImageData(v.w,v.h); const d=id.data; for(let i=0;i<m.length;i++) if(m[i]){ d[i*4]=255;d[i*4+1]=60;d[i*4+2]=160;d[i*4+3]=110; }
+      const tmp=document.createElement('canvas'); tmp.width=v.w; tmp.height=v.h; tmp.getContext('2d').putImageData(id,0,0); octx.drawImage(tmp,v.x||0,v.y||0); }
+  }
+  syncOverlay();
+}
+function syncOverlay(){ const c=$('#stageCanvas'), o=$('#overlayCanvas'); o.style.width=c.clientWidth+'px'; o.style.height=c.clientHeight+'px'; o.style.left=c.offsetLeft+'px'; o.style.top=c.offsetTop+'px'; }
+window.addEventListener('resize',()=>setTimeout(syncOverlay,0));
+
+/* ---- canvas interaction (move / wand / brush / erase) ---- */
+function canvasPos(e){ const c=$('#stageCanvas'); const r=c.getBoundingClientRect(); const sx=c.width/r.width, sy=c.height/r.height; const p=e.touches?e.touches[0]:e; return [ (p.clientX-r.left)*sx, (p.clientY-r.top)*sy ]; }
+function ensureMask(v,rid){ (RT.masks[v.id]??={}); return RT.masks[v.id][rid] ??= new Uint8Array(v.w*v.h); }
+function paintAt(v, rid, cx, cy, val){
+  const m=ensureMask(v,rid), d=RT.images[v.id].data.data, r=+$('#brushSize').value/2, x0=Math.round(cx-(v.x||0)), y0=Math.round(cy-(v.y||0));
+  for(let y=Math.max(0,Math.floor(y0-r)); y<=Math.min(v.h-1,Math.ceil(y0+r)); y++) for(let x=Math.max(0,Math.floor(x0-r)); x<=Math.min(v.w-1,Math.ceil(x0+r)); x++){
+    if((x-x0)**2+(y-y0)**2<=r*r){ const i=y*v.w+x; if(d[i*4+3]>0||!val) m[i]=val; } }
+}
+function wandAt(v, rid, cx, cy, subtract){
+  const x0=Math.round(cx-(v.x||0)), y0=Math.round(cy-(v.y||0)); if(x0<0||y0<0||x0>=v.w||y0>=v.h) return;
+  const d=RT.images[v.id].data.data, tol=+$('#wandTol').value, m=ensureMask(v,rid), seen=new Uint8Array(v.w*v.h);
+  const s=(y0*v.w+x0)*4; if(d[s+3]===0) return toast('Transparent pixel - click on the drawing');
+  const R=d[s],G=d[s+1],B=d[s+2]; const stack=[y0*v.w+x0]; seen[stack[0]]=1;
+  while(stack.length){ const i=stack.pop(); const p=i*4; if(d[p+3]===0) continue;
+    if(Math.abs(d[p]-R)+Math.abs(d[p+1]-G)+Math.abs(d[p+2]-B)>tol) continue; m[i]=subtract?0:1;
+    const x=i%v.w, y=(i-x)/v.w; const nb=[]; if(x>0)nb.push(i-1); if(x<v.w-1)nb.push(i+1); if(y>0)nb.push(i-v.w); if(y<v.h-1)nb.push(i+v.w);
+    for(const j of nb) if(!seen[j]){ seen[j]=1; stack.push(j); } }
+}
+function afterMaskEdit(v){ const m=RT.masks[v.id]; for(const rid in m) if(!m[rid].some(x=>x)) delete m[rid]; invalidate(v.id); delete RT.layerCache[v.id+'_meta']; }
+function onDown(e){ const v=curVar(); if(!v) return; e.preventDefault(); const [x,y]=canvasPos(e);
+  if(E.tool==='move'){ E.drag={x,y,ox:v.x||0,oy:v.y||0}; return; }
+  if(!E.regionId) return toast('Add a region first');
+  if(E.tool==='wand'){ wandAt(v,E.regionId,x,y,e.shiftKey||e.altKey); afterMaskEdit(v); save(); renderVariantProps(); renderVariantList(); drawEdit(); return; }
+  E.painting=true; paintAt(v,E.regionId,x,y,E.tool==='brush'?1:0); drawEdit(); }
+function onMove(e){ const v=curVar(); if(!v) return; if(E.drag){ const [x,y]=canvasPos(e); v.x=Math.round(E.drag.ox+x-E.drag.x); v.y=Math.round(E.drag.oy+y-E.drag.y); $('#varX').value=v.x; $('#varY').value=v.y; drawEdit(); }
+  else if(E.painting){ const [x,y]=canvasPos(e); paintAt(v,E.regionId,x,y,E.tool==='brush'?1:0); drawEdit(); } }
+function onUp(){ const v=curVar(); if(E.drag){ E.drag=null; save(); } if(E.painting){ E.painting=false; afterMaskEdit(v); save(); renderVariantProps(); renderVariantList(); drawEdit(); } }
+{ const c=$('#stageCanvas'); c.addEventListener('mousedown',onDown); window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+  c.addEventListener('touchstart',onDown,{passive:false}); window.addEventListener('touchmove',onMove,{passive:false}); window.addEventListener('touchend',onUp); }
+window.addEventListener('keydown',e=>{ if(P.mode!=='edit') return; const v=curVar(); if(!v||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const step=e.shiftKey?10:1; let h=true; switch(e.key){case 'ArrowLeft':v.x=(v.x||0)-step;break;case 'ArrowRight':v.x=(v.x||0)+step;break;case 'ArrowUp':v.y=(v.y||0)-step;break;case 'ArrowDown':v.y=(v.y||0)+step;break;
+    case 'm':E.tool='move';break;case 'w':E.tool='wand';break;case 'b':E.tool='brush';break;case 'e':E.tool='erase';break;default:h=false;}
+  if(h){ e.preventDefault(); save(); renderVariantProps(); renderToolbar(); drawEdit(); } });
+
+/* ---- edit-mode wiring ---- */
+$('#btnAddSlot').onclick=addSlot; $('#btnAddRegion').onclick=addRegion; $('#btnAddColorSet').onclick=addColorSet;
+$('#btnAddField').onclick=()=>{ P.fields.push({id:uid(),label:'Name',placeholder:'Type a name'}); save(); renderEdit(); };
+$('#dropVariants').onclick=()=>$('#filePng').click(); $('#filePng').onchange=e=>{ addVariantFiles([...e.target.files]); e.target.value=''; };
+{ const d=$('#dropVariants'); d.ondragover=e=>{e.preventDefault(); d.classList.add('over');}; d.ondragleave=()=>d.classList.remove('over'); d.ondrop=e=>{e.preventDefault(); d.classList.remove('over'); addVariantFiles([...e.dataTransfer.files]);}; }
+document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>{ E.tool=b.dataset.tool; renderToolbar(); });
+$('#activeRegion').onchange=e=>{ E.regionId=e.target.value; renderRegions(); drawEdit(); };
+$('#showMask').onchange=drawEdit; $('#previewColors').onchange=drawEdit;
+$('#btnClearRegion').onclick=()=>{ const v=curVar(); if(!v||!E.regionId) return; delete RT.masks[v.id]?.[E.regionId]; afterMaskEdit(v); save(); renderEdit(); };
+$('#varName').onchange=e=>{ const v=curVar(); if(v){ v.name=e.target.value; save(); renderVariantList(); } };
+$('#varX').onchange=e=>{ const v=curVar(); if(v){ v.x=+e.target.value; save(); drawEdit(); } }; $('#varY').onchange=e=>{ const v=curVar(); if(v){ v.y=+e.target.value; save(); drawEdit(); } };
+$('#btnResetPos').onclick=()=>{ const v=curVar(); if(v){ v.x=0; v.y=0; save(); renderVariantProps(); drawEdit(); } };
+$('#projName').onchange=e=>{ P.name=e.target.value; save(); };
+
+/* ============================================================
+   PLAY MODE
+   ============================================================ */
+function renderPlay(){
+  $('#playTitle').textContent=P.name;
+  const slotsBox=$('#playSlots'); slotsBox.innerHTML='';
+  const sorted=[...P.slots].sort((a,b)=>b.z-a.z);
+  for(const s of sorted){ if(!s.variants.length) continue;
+    const idx=clamp(P.play.variant[s.id]??0,0,s.variants.length-1); P.play.variant[s.id]=idx;
+    const cyc=el('div',{class:'cycler'});
+    const go=d=>{ P.play.variant[s.id]=(idx+d+s.variants.length)%s.variants.length; save(); renderPlay(); };
+    cyc.append(el('button',{onclick:()=>go(-1)},'‹'), el('div',{class:'lbl'}, s.name, el('div',{class:'cnt'}, P.play.hidden?.[s.id]?'off':`${idx+1} / ${s.variants.length}`)));
+    if(s.optional){ const cb=el('input',{type:'checkbox',title:'Show this part',onchange:e=>{ (P.play.hidden??={})[s.id]=!e.target.checked; save(); renderPlay(); }}); cb.checked=!P.play.hidden?.[s.id]; cyc.append(cb); }
+    cyc.append(el('button',{onclick:()=>go(1)},'›')); slotsBox.append(cyc);
+  }
+  const fb=$('#playFields'); fb.innerHTML='';
+  for(const f of P.fields){ const inp=el('input',{type:'text',placeholder:f.placeholder||'',value:P.play.fields[f.id]||'',oninput:e=>{P.play.fields[f.id]=e.target.value; save();}});
+    fb.append(el('div',{class:'nameField'}, el('label',{},f.label), inp)); }
+  const rb=$('#playRegions'); rb.innerHTML='';
+  for(const s of sorted){ const v=activeVariant(s); if(!v||P.play.hidden?.[s.id]) continue;
+    for(const r of s.regions){ if(!RT.masks[v.id]?.[r.id]) continue; // hide regions the current variant does not have
+      const set=P.colorSets.find(c=>c.id===r.colorSetId); const cur=colorFor(s,r);
+      const card=el('div',{class:'regionCard'}, el('div',{class:'rname'}, `${s.name} · ${r.name}`));
+      const sws=el('div',{class:'swatches'});
+      const colors=[...(set?.colors||[]), ...(P.scratchMode ? [] : ((P.play.custom??={})[r.id]||[]))];
+      for(const col of colors){ const sw=el('div',{class:'sw'+(col===cur?' sel':''),style:`background:${col}`,onclick:()=>{ P.play.colors[r.id]=col; save(); renderPlay(); }}); sws.append(sw); }
+      const pick=el('input',{type:'color',value:cur||'#ff0000',title:'Pick your own colour',oninput:e=>{ P.play.colors[r.id]=e.target.value; save(); drawPlay(); },
+        onchange:e=>{ const list=(P.play.custom[r.id]??=[]); if(!colors.includes(e.target.value)) list.push(e.target.value); save(); renderPlay(); }});
+      if(!P.scratchMode) sws.append(pick); card.append(sws); rb.append(card);
+    }
+  }
+  if(!rb.children.length) rb.append(el('div',{class:'muted'},'No colour regions on the current parts.'));
+  drawPlay();
+}
+function drawPlay(){ composite($('#playCanvas')); }
+$('#btnRandom').onclick=()=>{ for(const s of P.slots){ if(s.variants.length) P.play.variant[s.id]=Math.floor(Math.random()*s.variants.length);
+  for(const r of s.regions){ const set=P.colorSets.find(c=>c.id===r.colorSetId); if(set?.colors.length) P.play.colors[r.id]=set.colors[Math.floor(Math.random()*set.colors.length)]; } }
+  save(); renderPlay(); };
+$('#btnDownload').onclick=()=>{ const a=document.createElement('a'); const nm=P.fields[0]&&P.play.fields[P.fields[0].id]; a.download=(nm||P.name||'character').replace(/[^\w\- ]+/g,'')+'.png'; a.href=$('#playCanvas').toDataURL('image/png'); a.click(); };
+
+/* ============================================================
+   SCRATCH MODE + .sb3 EXPORT
+   Each slot becomes a base sprite (pixels outside regions) plus one sprite per
+   region whose costumes are pre-baked for every variant x palette colour.
+   ============================================================ */
+const SB={ LIMIT_AMBER:300, LIMIT_RED:800, BIG_SET:12 };
+const activeRegions=s=>s.regions.filter(r=>setColors(r).length);
+const setColors=r=>P.colorSets.find(c=>c.id===r.colorSetId)?.colors||[];
+function scratchCostumeCount(){ let n=0; for(const s of P.slots){ if(!s.variants.length) continue; n+=s.variants.length; for(const r of activeRegions(s)) n+=s.variants.length*setColors(r).length; } return n; }
+function charScale(){ const [W,H]=canvasSize(); return Math.min(4, 328*2/W, 352*2/H); } // px per canvas px at bitmapResolution 2
+
+function renderScratchCard(){
+  $('#scratchMode').checked=!!P.scratchMode; $('#scratchInfo').classList.toggle('hidden',!P.scratchMode); if(!P.scratchMode) return;
+  const n=scratchCostumeCount(), countEl=$('#sbCount'); countEl.textContent=`${n} costumes`; countEl.className='budget'+(n>SB.LIMIT_RED?' red':n>SB.LIMIT_AMBER?' amber':'');
+  $('#sbScale').textContent=P.slots.some(s=>s.variants.length)?`· character shown at ${Math.round(charScale()/2*100)}% in Scratch`:'';
+  const w=$('#sbWarn'); w.innerHTML='';
+  if(n>SB.LIMIT_RED) w.append(el('div',{class:'flag',style:'color:var(--bad)'},'⚠ Very large: the Scratch editor will be slow and the website may refuse it. Trim colours or variants.'));
+  else if(n>SB.LIMIT_AMBER) w.append(el('div',{class:'flag'},'⚠ Getting large: Scratch may load slowly.'));
+  for(const s of P.slots) for(const r of activeRegions(s)){ const c=setColors(r).length; if(c>SB.BIG_SET) w.append(el('div',{class:'flag'},`⚠ ${s.name} · ${r.name}: ${c} colours x ${s.variants.length} variants = ${c*s.variants.length} costumes`)); }
+  if(P.slots.some(s=>s.regions.some(r=>!setColors(r).length))) w.append(el('div',{class:'muted'},'Regions without a colour set keep their original colours in Scratch.'));
+}
+$('#scratchMode').onchange=e=>{ P.scratchMode=e.target.checked; invalidate(); save(); renderEdit(); };
+
+/* ---- zip (stored, no compression: PNGs are already compressed) ---- */
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(u){ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=CRC_T[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipStore(files){
+  const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+  for(const f of files){ const nm=enc.encode(f.name), crc=crc32(f.data), sz=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30)); lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(12,0x21,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,sz,true); lh.setUint32(22,sz,true); lh.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(lh.buffer), nm, f.data);
+    const ch=new DataView(new ArrayBuffer(46)); ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(14,0x21,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,sz,true); ch.setUint32(24,sz,true); ch.setUint16(28,nm.length,true); ch.setUint32(42,off,true);
+    central.push(new Uint8Array(ch.buffer), nm); off+=30+nm.length+sz; }
+  const cd=central.reduce((a,b)=>a+b.length,0), end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true); end.setUint32(12,cd,true); end.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(end.buffer)],{type:'application/x.scratch.sb3'});
+}
+/* ---- MD5 (Scratch names every asset by the MD5 of its bytes) ---- */
+const MD5_K=Array.from({length:64},(_,i)=>Math.floor(Math.abs(Math.sin(i+1))*4294967296)>>>0);
+const MD5_S=[7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21];
+function md5(bytes){
+  const len=bytes.length, nb=((len+8)>>>6)+1, w=new Uint32Array(nb*16);
+  for(let i=0;i<len;i++) w[i>>2]|=bytes[i]<<((i%4)*8);
+  w[len>>2]|=0x80<<((len%4)*8); w[nb*16-2]=(len*8)>>>0; w[nb*16-1]=Math.floor(len/0x20000000);
+  let a0=0x67452301,b0=0xefcdab89,c0=0x98badcfe,d0=0x10325476;
+  for(let b=0;b<nb;b++){ let A=a0,B=b0,C=c0,D=d0;
+    for(let i=0;i<64;i++){ let F,g; const r=i>>4;
+      if(r===0){F=(B&C)|(~B&D);g=i;} else if(r===1){F=(D&B)|(~D&C);g=(5*i+1)%16;} else if(r===2){F=B^C^D;g=(3*i+5)%16;} else {F=C^(B|~D);g=(7*i)%16;}
+      const s=MD5_S[r*4+(i%4)]; F=(F+A+MD5_K[i]+w[b*16+g])>>>0; A=D; D=C; C=B; B=(B+((F<<s)|(F>>>(32-s))))>>>0; }
+    a0=(a0+A)>>>0; b0=(b0+B)>>>0; c0=(c0+C)>>>0; d0=(d0+D)>>>0; }
+  return [a0,b0,c0,d0].map(v=>[0,8,16,24].map(k=>((v>>>k)&255).toString(16).padStart(2,'0')).join('')).join('');
+}
+
+/* ---- costume baking ---- */
+function newCanvas(w,h){ const c=document.createElement('canvas'); c.width=Math.max(2,Math.round(w)); c.height=Math.max(2,Math.round(h)); return c; }
+function bakeFrame(v, mutate, W, H, s){ // variant pixels (after mutate) placed at its offset in a full W x H frame, scaled by s
+  const src=RT.images[v.id].data, img=new ImageData(new Uint8ClampedArray(src.data),v.w,v.h); mutate(img.data);
+  const t=newCanvas(v.w,v.h); t.getContext('2d').putImageData(img,0,0);
+  const out=newCanvas(W*s,H*s), x=out.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(t,(v.x||0)*s,(v.y||0)*s,v.w*s,v.h*s); return out;
+}
+function bakeBase(v, regs, W,H,s){ const ms=regs.map(r=>RT.masks[v.id]?.[r.id]).filter(Boolean);
+  return bakeFrame(v, d=>{ for(const m of ms) for(let i=0;i<m.length;i++) if(m[i]) d[i*4+3]=0; }, W,H,s); }
+function bakeRegion(v, r, col, W,H,s){ const m=RT.masks[v.id][r.id], [th,ts,tl]=rgbToHsl(...hexToRgb(col)), baseL=regionBaseL(v,r.id);
+  return bakeFrame(v, d=>{ for(let i=0;i<m.length;i++){ const p=i*4; if(!m[i]){ d[p+3]=0; continue; } if(!d[p+3]) continue;
+    const L=rgbToHsl(d[p],d[p+1],d[p+2])[2], [nr,ng,nb]=hslToRgb(th,ts,clamp(tl+(L-baseL),0,1)); d[p]=nr; d[p+1]=ng; d[p+2]=nb; } }, W,H,s); }
+function uiCanvas(w,h,draw){ const c=newCanvas(w*2,h*2), x=c.getContext('2d'); x.scale(2,2); draw(x,w,h); return c; }
+function fitText(x,t,max){ if(x.measureText(t).width<=max) return t; while(t.length>1 && x.measureText(t+'…').width>max) t=t.slice(0,-1); return t+'…'; }
+function uiLabel(text,w,h,{bg=null,fg='#2b2a33',size=11,align='center',bold=true}={}){ return uiCanvas(w,h,(x)=>{
+  if(bg){ x.fillStyle=bg; x.beginPath(); x.roundRect(0.5,0.5,w-1,h-1,Math.min(8,h/2)); x.fill(); }
+  x.fillStyle=fg; x.font=`${bold?'700 ':''}${size}px system-ui,-apple-system,sans-serif`; x.textBaseline='middle'; x.textAlign=align;
+  x.fillText(fitText(x,text,w-8), align==='left'?2:w/2, h/2+0.5); }); }
+function uiArrow(glyph){ return uiCanvas(20,20,(x)=>{ x.fillStyle='#fff'; x.strokeStyle='#d8d4ca'; x.lineWidth=1; x.beginPath(); x.arc(10,10,9.2,0,7); x.fill(); x.stroke();
+  x.fillStyle='#2b2a33'; x.font='700 15px system-ui,sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(glyph,10,9.5); }); }
+function uiSwatch(col){ return uiCanvas(14,14,(x)=>{ x.fillStyle=col; x.strokeStyle='#cfcabe'; x.lineWidth=1; x.beginPath(); x.arc(7,7,6.3,0,7); x.fill(); x.stroke(); }); }
+function uiBackdrop(){ return uiCanvas(480,360,(x)=>{ x.fillStyle='#fffdf7'; x.fillRect(0,0,480,360);
+  x.fillStyle='#ffffff'; x.strokeStyle='#e2ded4'; x.beginPath(); x.roundRect(336,4,140,352,10); x.fill(); x.stroke();
+  x.fillStyle='#a19fad'; x.font='600 10px system-ui,sans-serif'; x.fillText('▶ Press the green flag to start',8,352); }); }
+
+/* ---- Scratch block builder ---- */
+function Blocks(){
+  const blocks={}; let n=0, sy=0;
+  const add=(opcode,o={})=>{ const id='b'+(++n); blocks[id]={opcode,next:null,parent:null,inputs:o.inputs||{},fields:o.fields||{},shadow:!!o.shadow,topLevel:false}; return id; };
+  const chain=ids=>{ for(let i=0;i<ids.length-1;i++){ blocks[ids[i]].next=ids[i+1]; blocks[ids[i+1]].parent=ids[i]; } return ids[0]; };
+  const script=ids=>{ chain(ids); Object.assign(blocks[ids[0]],{topLevel:true,x:20,y:sy}); sy+=80+ids.length*48; };
+  const finish=()=>{ for(const [id,b] of Object.entries(blocks)) for(const v of Object.values(b.inputs)) for(const e of v.slice(1)) if(typeof e==='string'&&blocks[e]) blocks[e].parent=id; return blocks; };
+  const N=v=>[1,[4,String(v)]], T=v=>[1,[10,String(v)]];
+  const V=v=>[3,[12,v.name,v.id],[4,'0']], VT=v=>[3,[12,v.name,v.id],[10,'']], R=id=>[3,id,[4,'0']], RT_=id=>[3,id,[10,'']];
+  const op=(opcode,a,b)=>add(opcode,{inputs:{NUM1:a,NUM2:b}});
+  return { blocks, add, chain, script, finish, N, T, V, VT, R, RT:RT_, op,
+    flag:()=>add('event_whenflagclicked'), clicked:()=>add('event_whenthisspriteclicked'), cloneStart:()=>add('control_start_as_clone'),
+    recv:bc=>add('event_whenbroadcastreceived',{fields:{BROADCAST_OPTION:[bc.name,bc.id]}}),
+    bcast:bc=>add('event_broadcast',{inputs:{BROADCAST_INPUT:[1,[11,bc.name,bc.id]]}}),
+    setVar:(v,input)=>add('data_setvariableto',{fields:{VARIABLE:[v.name,v.id]},inputs:{VALUE:input}}),
+    costumeBy:(repId,firstName)=>{ const sh=add('looks_costume',{fields:{COSTUME:[firstName,null]},shadow:true}); return add('looks_switchcostumeto',{inputs:{COSTUME:[3,repId,sh]}}); },
+    costumeNamed:name=>{ const sh=add('looks_costume',{fields:{COSTUME:[name,null]},shadow:true}); return add('looks_switchcostumeto',{inputs:{COSTUME:[1,sh]}}); },
+    costumeNum:()=>add('looks_costumenumbername',{fields:{NUMBER_NAME:['number',null]}}),
+    show:()=>add('looks_show'), hide:()=>add('looks_hide'),
+    goto:(x,y)=>add('motion_gotoxy',{inputs:{X:N(Math.round(x*10)/10),Y:N(Math.round(y*10)/10)}}),
+    clone:()=>{ const m=add('control_create_clone_of_menu',{fields:{CLONE_OPTION:['_myself_',null]},shadow:true}); return add('control_create_clone_of',{inputs:{CLONE_OPTION:[1,m]}}); },
+    random:(a,b)=>add('operator_random',{inputs:{FROM:N(a),TO:N(b)}}),
+    equals:(a,b)=>add('operator_equals',{inputs:{OPERAND1:a,OPERAND2:b}}),
+    ifElse:(cond,s1,s2)=>add('control_if_else',{inputs:{CONDITION:[2,cond],SUBSTACK:[2,s1],SUBSTACK2:[2,s2]}}) };
+}
+
+/* ---- the exporter ---- */
+async function exportSb3(){
+  const slots=[...P.slots].filter(s=>s.variants.length).sort((a,b)=>a.z-b.z); // back to front
+  if(!slots.length) return toast('Add some variants first');
+  const btn=$('#btnSb3'); btn.disabled=true;
+  try{
+    const assets=new Map(), total=scratchCostumeCount(); let done=0;
+    const progress=()=>{ btn.textContent=`Baking costumes… ${done}/${total}`; };
+    const addAsset=async c=>{ const blob=await new Promise(r=>c.toBlob(r,'image/png')); const u=new Uint8Array(await blob.arrayBuffer()); const h=md5(u); if(!assets.has(h)) assets.set(h,u); return h; };
+    const costume=async (name,c,cx,cy)=>{ const h=await addAsset(c); return {name,assetId:h,md5ext:h+'.png',dataFormat:'png',bitmapResolution:2,rotationCenterX:Math.round(cx??c.width/2),rotationCenterY:Math.round(cy??c.height/2)}; };
+    const EMPTY=newCanvas(2,2);
+    const uniq=(()=>{ const seen=new Set(); return base=>{ let n=base,i=2; while(seen.has(n)) n=`${base} ${i++}`; seen.add(n); return n; }; })();
+    const nextId=(()=>{ let i=0; return p=>`${p}${++i}_${uid()}`; })();
+
+    // stage state: variables + broadcasts
+    const stageVars={}, stageBc={};
+    const mkVar=(name,val)=>{ const v={id:nextId('v'),name:uniq('var:'+name).slice(4)}; stageVars[v.id]=[v.name,val]; return v; };
+    const mkBc=name=>{ const b={id:nextId('m'),name}; stageBc[b.id]=name; return b; };
+    const bcAll=mkBc('update all');
+
+    const [W,H]=canvasSize(), s=charScale(), CX=-72, CY=0;
+    const model=slots.map(slot=>{
+      const regs=activeRegions(slot), vi=clamp(P.play.variant[slot.id]??0,0,slot.variants.length-1);
+      return { slot, regs, vi,
+        vVar: mkVar(`${slot.name} variant`, vi+1),
+        shownVar: slot.optional ? mkVar(`${slot.name} shown`, P.play.hidden?.[slot.id]?0:1) : null,
+        cVars: regs.map(r=>{ const cols=setColors(r), ci=Math.max(0,cols.indexOf(P.play.colors[r.id])); return mkVar(`${slot.name} ${r.name} colour`, ci+1); }),
+        bc: mkBc(`update ${slot.name}`) };
+    });
+
+    const targets=[]; let layer=1; const spriteNames=new Set();
+    const sName=b=>{ let n=b,i=2; while(spriteNames.has(n)) n=`${b} ${i++}`; spriteNames.add(n); return n; };
+    const sprite=(name,costumes,blocks,o={})=>({isStage:false,name:sName(name),variables:{},lists:{},broadcasts:{},blocks,comments:{},currentCostume:o.current||0,costumes,sounds:[],volume:100,layerOrder:layer++,visible:o.visible!==false,x:o.x||0,y:o.y||0,size:o.size||100,direction:90,draggable:false,rotationStyle:'all around'});
+
+    // character sprites: base + one per region, all stacked at the same spot
+    for(const m of model){
+      const {slot,regs}=m; const visible=!m.shownVar || stageVars[m.shownVar.id][1]===1;
+      const visBody=b=>m.shownVar ? [b.ifElse(b.equals(b.VT(m.shownVar),b.T(1)),b.show(),b.hide())] : [];
+      // base
+      { const b=Blocks(), cos=[];
+        for(const [i,v] of slot.variants.entries()){ cos.push(await costume(`${i+1} ${v.name}`, bakeBase(v,regs,W,H,s))); done++; progress(); }
+        for(const hat of [b.recv(m.bc), b.recv(bcAll)]) b.script([hat, b.costumeBy(b.add('data_variable',{fields:{VARIABLE:[m.vVar.name,m.vVar.id]}}),cos[0].name), ...visBody(b)]);
+        targets.push(sprite(slot.name,cos,b.finish(),{x:CX,y:CY,current:m.vi,visible})); }
+      // regions
+      for(const [ri,r] of regs.entries()){ const b=Blocks(), cos=[], cols=setColors(r), cv=m.cVars[ri];
+        for(const [i,v] of slot.variants.entries()) for(const col of cols){
+          cos.push(await costume(`${i+1} ${v.name} | ${col}`, RT.masks[v.id]?.[r.id] ? bakeRegion(v,r,col,W,H,s) : EMPTY, RT.masks[v.id]?.[r.id]?undefined:1, RT.masks[v.id]?.[r.id]?undefined:1)); done++; progress(); }
+        for(const hat of [b.recv(m.bc), b.recv(bcAll)]){
+          const sub=b.op('operator_subtract',b.V(m.vVar),b.N(1)), mul=b.op('operator_multiply',b.R(sub),b.N(cols.length)), sum=b.op('operator_add',b.R(mul),b.V(cv));
+          b.script([hat, b.costumeBy(sum,cos[0].name), ...visBody(b)]); }
+        const cur=m.vi*cols.length+(stageVars[cv.id][1]-1);
+        targets.push(sprite(`${slot.name} - ${r.name}`,cos,b.finish(),{x:CX,y:CY,current:cur,visible})); }
+    }
+
+    // UI layout (right-hand panel, stage units)
+    const X0=342, PW=130, TOP=172, AVAIL=344, PER=8, STEP=16, SWD=14;
+    const rows=[];
+    for(const m of [...model].reverse()){ // front-most slot first, like the app
+      const arrows=m.slot.variants.length>1; if(!arrows && !m.regs.length && !m.shownVar) continue;
+      rows.push({t:'slot',m,h:22,arrows});
+      m.regs.forEach((r,ri)=>{ rows.push({t:'rl',m,r,h:12}); rows.push({t:'sw',m,r,ri,h:Math.ceil(setColors(r).length/PER)*STEP}); });
+      rows.push({t:'gap',h:6}); }
+    rows.push({t:'rand',h:24});
+    const k=Math.min(1, AVAIL/rows.reduce((a,r)=>a+r.h,0)), size=k*100;
+    const sx=rel=>X0-240+rel*k, sy=rel=>TOP-rel*k;
+    let acc=0;
+    for(const row of rows){ const mid=acc+row.h/2, m=row.m;
+      if(row.t==='slot'){
+        const lw=row.arrows?PW-48:PW, b=Blocks();
+        const cos=[await costume('on',uiLabel(m.slot.name,lw,20,{size:11}))]; if(m.shownVar) cos.push(await costume('off',uiLabel(m.slot.name+' (off)',lw,20,{size:11,fg:'#a19fad'})));
+        if(m.shownVar){ const upd=[b.recv(bcAll)], c1=()=>b.costumeBy(b.op('operator_subtract',b.N(2),b.V(m.shownVar)),'on');
+          b.script([b.clicked(), b.setVar(m.shownVar,b.RT(b.op('operator_subtract',b.N(1),b.V(m.shownVar)))), c1(), b.bcast(m.bc)]); b.script([...upd, c1()]); }
+        targets.push(sprite(`${m.slot.name} label`,cos,b.finish(),{x:sx(PW/2),y:sy(mid),size,current:m.shownVar&&stageVars[m.shownVar.id][1]===0?1:0}));
+        if(row.arrows){ const Nv=m.slot.variants.length;
+          for(const [dir,glyph,rel] of [[-1,'‹',10],[1,'›',PW-10]]){ const b=Blocks();
+            const expr = dir<0 ? b.op('operator_add',b.op('operator_mod',b.R(b.op('operator_add',b.V(m.vVar),b.N(Nv-2))),b.N(Nv)),b.N(1))
+                               : b.op('operator_add',b.op('operator_mod',b.V(m.vVar),b.N(Nv)),b.N(1));
+            // op() returned ids; wrap nested ids as reporter inputs
+            const fix=id=>{ const bl=b.blocks[id]; for(const key of ['NUM1','NUM2']){ const inp=bl.inputs[key]; if(typeof inp==='string'){ bl.inputs[key]=b.R(inp); fix(inp); } } }; fix(expr);
+            b.script([b.clicked(), b.setVar(m.vVar,b.RT(expr)), b.bcast(m.bc)]);
+            targets.push(sprite(`${m.slot.name} ${dir<0?'prev':'next'}`,[await costume(dir<0?'prev':'next',uiArrow(glyph))],b.finish(),{x:sx(rel),y:sy(mid),size})); } }
+      } else if(row.t==='rl'){
+        targets.push(sprite(`${m.slot.name} ${row.r.name} label`,[await costume('label',uiLabel(row.r.name,PW,12,{size:9,align:'left',fg:'#6f6d7a'}))],{},{x:sx(PW/2),y:sy(mid),size}));
+      } else if(row.t==='sw'){
+        const cols=setColors(row.r), cv=m.cVars[row.ri], b=Blocks(), cos=[];
+        for(const [i,col] of cols.entries()) cos.push(await costume(`c${i+1}`,uiSwatch(col)));
+        const place=[]; cols.forEach((_,i)=>{ const cx=SWD/2+(i%PER)*STEP, cy=acc+SWD/2+Math.floor(i/PER)*STEP+1; place.push(b.costumeNamed(`c${i+1}`), b.goto(sx(cx),sy(cy)), b.clone()); });
+        b.script([b.flag(), b.hide(), ...place]);
+        b.script([b.cloneStart(), b.show()]);
+        b.script([b.clicked(), b.setVar(cv,b.RT(b.costumeNum())), b.bcast(m.bc)]);
+        targets.push(sprite(`${m.slot.name} ${row.r.name} swatches`,cos,b.finish(),{x:sx(SWD/2),y:sy(acc+SWD/2),size,visible:false}));
+      } else if(row.t==='rand'){
+        const b=Blocks(), sets=[];
+        for(const m2 of model){ if(m2.slot.variants.length>1) sets.push(b.setVar(m2.vVar,b.RT(b.random(1,m2.slot.variants.length))));
+          m2.regs.forEach((r,ri)=>{ const n=setColors(r).length; if(n>1) sets.push(b.setVar(m2.cVars[ri],b.RT(b.random(1,n)))); }); }
+        b.script([b.clicked(), ...sets, b.bcast(bcAll)]);
+        targets.push(sprite('Randomise',[await costume('btn',uiLabel('🎲 Randomise',PW,24,{bg:'#ff7a59',fg:'#fff',size:12}))],b.finish(),{x:sx(PW/2),y:sy(mid),size}));
+      }
+      acc+=row.h; }
+
+    // stage: reset variables to the starting look, then tell everyone to update
+    const sb=Blocks(), resets=[];
+    for(const m of model){ resets.push(sb.setVar(m.vVar,sb.T(m.vi+1))); if(m.shownVar) resets.push(sb.setVar(m.shownVar,sb.T(stageVars[m.shownVar.id][1]))); m.cVars.forEach(cv=>resets.push(sb.setVar(cv,sb.T(stageVars[cv.id][1])))); }
+    sb.script([sb.flag(), ...resets, sb.bcast(bcAll)]);
+    const bd=await costume('backdrop',uiBackdrop(),480,360);
+    targets.unshift({isStage:true,name:'Stage',variables:stageVars,lists:{},broadcasts:stageBc,blocks:sb.finish(),comments:{},currentCostume:0,costumes:[bd],sounds:[],volume:100,layerOrder:0,tempo:60,videoTransparency:50,videoState:'on',textToSpeechLanguage:null});
+
+    const project={targets,monitors:[],extensions:[],meta:{semver:'3.0.0',vm:'0.2.0',agent:'Character Creator'}};
+    const files=[{name:'project.json',data:new TextEncoder().encode(JSON.stringify(project))}, ...[...assets].map(([h,u])=>({name:h+'.png',data:u}))];
+    const blob=zipStore(files);
+    RT.lastSb3=blob; // kept for testing
+    const a=document.createElement('a'); a.download=(P.name||'character').replace(/[^\w\- ]+/g,'')+'.sb3'; a.href=URL.createObjectURL(blob); a.click();
+    toast(`Exported .sb3 · ${targets.length-1} sprites · ${(blob.size/1048576).toFixed(1)} MB`);
+  } catch(err){ console.error(err); toast('Export failed: '+err.message); }
+  finally{ btn.disabled=false; btn.textContent='⬇ Export .sb3'; }
+}
+$('#btnSb3').onclick=exportSb3;
+
+/* ============================================================
+   Theme (light / dark). Starts from the system setting; a manual pick is
+   remembered in this browser only.
+   ============================================================ */
+const Theme={
+  sysDark:()=>window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches,
+  current(){ return document.documentElement.dataset.theme || (this.sysDark()?'dark':'light'); },
+  apply(t){ if(t) document.documentElement.dataset.theme=t; else delete document.documentElement.dataset.theme;
+    const dark=this.current()==='dark', b=$('#btnTheme'); b.textContent=dark?'☀️':'🌙'; b.title=dark?'Switch to light theme':'Switch to dark theme'; },
+  init(){ let saved=null; try{ saved=localStorage.getItem('cc-theme'); }catch(e){} this.apply(saved==='dark'||saved==='light'?saved:null);
+    matchMedia&&matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(!document.documentElement.dataset.theme) this.apply(null); }); },
+  toggle(){ const t=this.current()==='dark'?'light':'dark'; this.apply(t); try{ localStorage.setItem('cc-theme',t); }catch(e){} }
+};
+$('#btnTheme').onclick=()=>Theme.toggle();
+Theme.init();
+
+/* ============================================================
+   Mode switching, import/export, boot
+   ============================================================ */
+function setMode(m){ P.mode=m;
+  $('#welcomeMain').classList.toggle('hidden',m!=='welcome');
+  $('#editMain').classList.toggle('hidden',m!=='edit');
+  $('#playMain').classList.toggle('hidden',m!=='play');
+  const mode=$('#btnMode'); mode.textContent= m==='edit'?'▶ Play':'✎ Edit'; mode.className= m==='edit'?'primary':'';
+  mode.classList.toggle('hidden', m==='welcome');
+  document.querySelectorAll('#btnExport,#btnImport,#btnNew,#projName').forEach(x=>x.classList.toggle('hidden',m!=='edit'));
+  $('#btnOpen').classList.toggle('hidden', m!=='play');
+  $('#saveStatus').classList.toggle('hidden', m==='welcome');
+  if(m==='edit') renderEdit(); else if(m==='play') renderPlay(); save(); }
+$('#btnMode').onclick=()=>setMode(P.mode==='edit'?'play':'edit');
+$('#btnExport').onclick=()=>{ const blob=new Blob([JSON.stringify(serialize())],{type:'application/json'}); const a=document.createElement('a'); a.download=(P.name||'project').replace(/[^\w\- ]+/g,'')+'.creator.json'; a.href=URL.createObjectURL(blob); a.click(); toast('Project exported'); };
+$('#btnImport').onclick=()=>$('#fileImport').click();
+$('#btnOpen').onclick=()=>$('#fileImport').click();
+$('#dropProject').onclick=()=>$('#fileImport').click();
+{ const d=$('#dropProject');
+  d.ondragover=e=>{e.preventDefault(); d.classList.add('over');}; d.ondragleave=()=>d.classList.remove('over');
+  d.ondrop=e=>{e.preventDefault(); d.classList.remove('over'); openProjectFile(e.dataTransfer.files[0]); }; }
+async function openProjectFile(f){ if(!f) return;
+  try{ const data=JSON.parse(await f.text()); if(!Array.isArray(data.slots)) throw 0; await boot(data,{forcePlay:true}); toast('Project loaded'); }
+  catch{ toast('That does not look like a project file'); } }
+$('#fileImport').onchange=async e=>{ await openProjectFile(e.target.files[0]); e.target.value=''; };
+$('#btnNewFromWelcome').onclick=async()=>{ await boot(newProject()); setMode('edit'); };
+{ const b=$('#btnNew'); b.onclick=async()=>{ if(b.dataset.armed){ clearTimeout(b._t); delete b.dataset.armed; b.textContent='New'; await boot(newProject()); setMode('edit'); toast('New empty project'); return; }
+  b.dataset.armed='1'; b.textContent='Erase everything?'; b._t=setTimeout(()=>{ delete b.dataset.armed; b.textContent='New'; },3000); }; }
+
+async function boot(data, opts={}){
+  P=Object.assign(newProject(), data||{}); P.play=Object.assign({variant:{},colors:{},fields:{},custom:{},hidden:{}}, P.play||{});
+  RT.images={}; RT.masks={}; RT.layerCache={}; E.slotId=null; E.varId=null; E.regionId=null;
+  await loadImages(); $('#projName').value=P.name;
+  if(P.slots[0]){ E.slotId=P.slots[0].id; E.varId=P.slots[0].variants[0]?.id||null; E.regionId=P.slots[0].regions[0]?.id||null; }
+  const playable=P.slots.some(s=>s.variants.length);
+  setMode( !P.slots.length ? 'welcome'
+         : (opts.forcePlay || P.mode==='play') && playable ? 'play'
+         : 'edit' );
+}
+(async()=>{ let saved=null; try{ saved=await DB.get('project'); }catch(e){ console.warn(e); } await boot(saved); if(saved) $('#saveStatus').textContent='restored'; })();
+</script>
+</body>
+</html>
