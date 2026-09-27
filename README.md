@@ -1,6 +1,8 @@
 # liangforstudy.GitHub.io
 Quack!
 
+https://liangforstudy.github.io/
+
 new discord server: https://discord.gg/BKrv85V6Uz
 
 important links!!
