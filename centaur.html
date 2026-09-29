@@ -134,10 +134,14 @@
   #pauseHint.waiting { color: #ffce9a; }
 
   /* ── start overlay (desktop pointer-lock prompt) ── */
-  #startOverlay { position: fixed; inset: 0; z-index: 20; background: radial-gradient(ellipse at center, #1a2433 0%, #060a10 100%); color: #eef2f6; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; }
-  #startOverlay h1 { font-size: 28px; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 14px; color: #d8e6c8; }
-  #startOverlay p { margin: 4px 0; color: rgba(255,255,255,0.6); font-size: 13px; }
-  #startOverlay .prompt { margin-top: 26px; padding: 10px 22px; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; font-size: 13px; letter-spacing: 0.05em; color: #d8e6c8; }
+  #startOverlay { position: fixed; inset: 0; z-index: 85; background: linear-gradient(90deg, rgba(6,10,16,0.95) 0%, rgba(6,10,16,0.7) 40%, rgba(6,10,16,0.15) 100%), radial-gradient(ellipse at center, #1a2433 0%, #060a10 100%); color: #eef2f6; display: flex; align-items: center; }
+  #startOverlay .menu-side { padding: 0 16px 0 clamp(16px, 8vw, 110px); max-width: 420px; }
+  #startOverlay h1 { font-size: clamp(32px, 6vw, 52px); letter-spacing: 0.08em; font-weight: 600; margin: 0 0 8px; color: #d8e6c8; }
+  #startOverlay .tagline { margin: 0 0 40px; color: rgba(255,255,255,0.6); font-size: 13px; }
+  #startOverlay .menu-list { display: flex; flex-direction: column; gap: 6px; }
+  #startOverlay .menu-item { font-size: 22px; letter-spacing: 0.04em; color: rgba(255,255,255,0.75); padding: 8px 0 8px 14px; border-left: 3px solid transparent; cursor: pointer; transition: color .15s, border-color .15s, padding-left .15s; user-select: none; }
+  #startOverlay .menu-item:hover { color: #d8e6c8; border-left-color: #d8e6c8; padding-left: 22px; }
+  #startOverlay .hint { margin-top: 44px; color: rgba(255,255,255,0.4); font-size: 12px; line-height: 1.6; }
 
   /* ── mobile controls ── */
   .mobile-ui { display: none; }
@@ -352,11 +356,15 @@
 
 <!-- Start overlay -->
 <div id="startOverlay">
-  <h1>TERRAFORM</h1>
-  <p>A smooth voxel sandbox. Walk the hills, dig tunnels, mold new ground.</p>
-  <p>WASD · mouse · space to jump · left click digs · right click molds</p>
-  <p>Press Esc anytime to free the cursor for the panel on the right</p>
-  <div class="prompt">Click to enter</div>
+  <div class="menu-side">
+    <h1>TERRAFORM</h1>
+    <p class="tagline">A smooth voxel sandbox. Walk the hills, dig tunnels, mold new ground.</p>
+    <nav class="menu-list">
+      <div id="menuNewGameBtn" class="menu-item">New Game</div>
+      <div id="menuOptionsBtn" class="menu-item">Options</div>
+    </nav>
+    <p class="hint">WASD · mouse · space to jump · left click digs · right click molds<br>Esc frees the cursor</p>
+  </div>
 </div>
 
 <!-- Mobile UI -->
@@ -3308,10 +3316,12 @@ function onLockChange() {
   else startOverlay.style.display = 'flex';
 }
 
-startOverlay.addEventListener('pointerdown', (e) => {
+document.getElementById('menuNewGameBtn').addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'touch' || e.pointerType === 'pen') { setInputMode('touch'); return; }
   requestLock();
 });
+// Options reuses the pause menu for now; it sits above the start overlay.
+document.getElementById('menuOptionsBtn').addEventListener('pointerdown', () => pauseMenu.open());
 
 document.getElementById('resumeBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); requestLock(); });
 document.getElementById('pauseDebugBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); cancelPendingLock(); pauseMenu.close(); debugMenu.open(); });
