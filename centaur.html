@@ -14,6 +14,7 @@
   #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.85); box-shadow: 0 0 2px rgba(0,0,0,0.8); }
   #crosshair::before { top: 50%; left: 0; width: 100%; height: 2px; transform: translateY(-50%); }
   #crosshair::after  { left: 50%; top: 0; height: 100%; width: 2px; transform: translateX(-50%); }
+  body.hide-crosshair #crosshair { visibility: hidden; }
 
   /* ── HUD ── */
   #hud { position: fixed; top: 14px; left: 14px; z-index: 40; color: rgba(255,255,255,0.75); font-size: 12px; letter-spacing: 0.04em; background: rgba(10,14,20,0.45); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); line-height: 1.5; backdrop-filter: blur(4px); transition: opacity 0.6s ease; }
@@ -219,6 +220,7 @@
 
     <details class="dgroup" open>
       <summary>Display</summary>
+      <div class="row chkRow"><label for="hideCrosshairToggle">Hide crosshair</label><input type="checkbox" id="hideCrosshairToggle"></div>
       <div class="row chkRow"><label for="cursorRingToggle">3D brush cursor</label><input type="checkbox" id="cursorRingToggle" checked></div>
       <div class="row chkRow"><label for="perfToggle">Perf overlay</label><input type="checkbox" id="perfToggle"></div>
       <div class="row chkRow"><label for="wireframeToggle">Always show wireframe</label><input type="checkbox" id="wireframeToggle"></div>
@@ -2938,6 +2940,7 @@ const perfStatsEl = document.getElementById('perfStats');
 const __physMs = [];
 let __frames = 0, __lastPerf = performance.now();
 document.getElementById('perfToggle').addEventListener('change', (e) => { perfStatsEl.style.display = e.target.checked ? 'block' : 'none'; });
+document.getElementById('hideCrosshairToggle').addEventListener('change', (e) => document.body.classList.toggle('hide-crosshair', e.target.checked));
 setInterval(() => {
   const now = performance.now(), fps = __frames * 1000 / (now - __lastPerf); __frames = 0; __lastPerf = now;
   const a = __physMs.splice(0), avg = a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0, mx = a.length ? Math.max(...a) : 0;
@@ -2945,7 +2948,7 @@ setInterval(() => {
     perfStatsEl.textContent = window.__COLLISION_MODE.toUpperCase().padEnd(8) + 'FPS ' + fps.toFixed(0)
       + '\nphysics ' + avg.toFixed(2) + ' ms  worst ' + mx.toFixed(2) + ' ms';
 }, 500);
-noPropagate('fieldCollisionToggle', 'humanoidToggle', 'bonesToggle', 'perfToggle');
+noPropagate('fieldCollisionToggle', 'humanoidToggle', 'bonesToggle', 'perfToggle', 'hideCrosshairToggle');
 
 // Camera (Customisation menu)
 document.getElementById('thirdPersonToggle').addEventListener('change', (e) => setCamMode(e.target.checked ? 'third' : 'first'));
