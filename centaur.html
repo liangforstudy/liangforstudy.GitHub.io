@@ -134,14 +134,16 @@
   #pauseHint.waiting { color: #ffce9a; }
 
   /* ── start overlay (desktop pointer-lock prompt) ── */
-  #startOverlay { position: fixed; inset: 0; z-index: 85; background: linear-gradient(90deg, rgba(6,10,16,0.95) 0%, rgba(6,10,16,0.7) 40%, rgba(6,10,16,0.15) 100%), radial-gradient(ellipse at center, #1a2433 0%, #060a10 100%); color: #eef2f6; display: flex; align-items: center; }
-  #startOverlay .menu-side { padding: 0 16px 0 clamp(16px, 8vw, 110px); max-width: 420px; }
-  #startOverlay h1 { font-size: clamp(32px, 6vw, 52px); letter-spacing: 0.08em; font-weight: 600; margin: 0 0 8px; color: #d8e6c8; }
-  #startOverlay .tagline { margin: 0 0 40px; color: rgba(255,255,255,0.6); font-size: 13px; }
-  #startOverlay .menu-list { display: flex; flex-direction: column; gap: 6px; }
-  #startOverlay .menu-item { font-size: 22px; letter-spacing: 0.04em; color: rgba(255,255,255,0.75); padding: 8px 0 8px 14px; border-left: 3px solid transparent; cursor: pointer; transition: color .15s, border-color .15s, padding-left .15s; user-select: none; }
-  #startOverlay .menu-item:hover { color: #d8e6c8; border-left-color: #d8e6c8; padding-left: 22px; }
-  #startOverlay .hint { margin-top: 44px; color: rgba(255,255,255,0.4); font-size: 12px; line-height: 1.6; }
+  #startOverlay { position: fixed; inset: 0; z-index: 85; background: #191919; color: #c4c4c4; display: flex; align-items: center; justify-content: center; cursor: pointer; font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; padding: 16px; box-sizing: border-box; }
+  #startOverlay .u-window { width: 460px; max-width: 100%; background: #383838; border: 1px solid #191919; border-radius: 4px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); overflow: hidden; }
+  #startOverlay .u-titlebar { background: #282828; border-bottom: 1px solid #191919; height: 24px; display: flex; align-items: flex-end; padding-left: 4px; }
+  #startOverlay .u-tab { background: #383838; border: 1px solid #191919; border-bottom: none; border-top: 2px solid #3a79bb; border-radius: 3px 3px 0 0; padding: 3px 12px; font-size: 12px; color: #d2d2d2; margin-bottom: -1px; }
+  #startOverlay .u-body { padding: 18px 20px 20px; text-align: left; }
+  #startOverlay h1 { font-size: 18px; font-weight: 600; margin: 0 0 8px; color: #e4e4e4; letter-spacing: 0.02em; }
+  #startOverlay .u-section { margin: 14px 0 6px; padding: 4px 8px; background: #3e3e3e; border-top: 1px solid #2a2a2a; border-bottom: 1px solid #2a2a2a; font-size: 12px; font-weight: 600; color: #d2d2d2; }
+  #startOverlay p { margin: 4px 0; color: #a8a8a8; font-size: 12px; line-height: 1.5; }
+  #startOverlay .prompt { margin-top: 18px; padding: 6px 0; text-align: center; background: #3a79bb; border: 1px solid #24527f; border-radius: 3px; font-size: 12px; font-weight: 600; color: #fff; }
+  #startOverlay:hover .prompt { background: #4a8ad0; }
 
   /* ── mobile controls ── */
   .mobile-ui { display: none; }
@@ -356,14 +358,16 @@
 
 <!-- Start overlay -->
 <div id="startOverlay">
-  <div class="menu-side">
-    <h1>TERRAFORM</h1>
-    <p class="tagline">A smooth voxel sandbox. Walk the hills, dig tunnels, mold new ground.</p>
-    <nav class="menu-list">
-      <div id="menuNewGameBtn" class="menu-item">New Game</div>
-      <div id="menuOptionsBtn" class="menu-item">Options</div>
-    </nav>
-    <p class="hint">WASD · mouse · space to jump · left click digs · right click molds<br>Esc frees the cursor</p>
+  <div class="u-window">
+    <div class="u-titlebar"><span class="u-tab">&#9632; Game</span></div>
+    <div class="u-body">
+      <h1>TERRAFORM</h1>
+      <p>A smooth voxel sandbox. Walk the hills, dig tunnels, mold new ground.</p>
+      <div class="u-section">Controls</div>
+      <p>WASD · mouse · space to jump · left click digs · right click molds</p>
+      <p>Press Esc anytime to free the cursor for the panel on the right</p>
+      <div class="prompt">&#9654;&nbsp; Play</div>
+    </div>
   </div>
 </div>
 
@@ -3316,12 +3320,10 @@ function onLockChange() {
   else startOverlay.style.display = 'flex';
 }
 
-document.getElementById('menuNewGameBtn').addEventListener('pointerdown', (e) => {
+startOverlay.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'touch' || e.pointerType === 'pen') { setInputMode('touch'); return; }
   requestLock();
 });
-// Options reuses the pause menu for now; it sits above the start overlay.
-document.getElementById('menuOptionsBtn').addEventListener('pointerdown', () => pauseMenu.open());
 
 document.getElementById('resumeBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); requestLock(); });
 document.getElementById('pauseDebugBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); cancelPendingLock(); pauseMenu.close(); debugMenu.open(); });
