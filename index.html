@@ -58,24 +58,63 @@
                 background-color: rgba(255, 255, 255, 0.18);
             }
 
+            /* Project cards, styled after the gallery cards in pixel.html */
+            .card-section { align-self: stretch; margin: 0.4rem 0 0; font-size: 18px; font-weight: 700; text-align: left; color: #e8e8e8; }
+            .card-grid {
+                align-self: stretch; display: grid; gap: 12px;
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            }
+            @media (max-width: 600px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            .game-card {
+                position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden;
+                background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px;
+                text-align: left; transition: transform 0.1s, border-color 0.15s;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .game-card:hover { border-color: #444; }
+            .game-card:active { transform: scale(0.96); }
+            .game-card img {
+                position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
+                max-width: none; object-fit: cover; transition: transform 0.3s;
+            }
+            .game-card:hover img { transform: scale(1.05); }
+            /* "to top right" puts the 50% line exactly on the top-left -> bottom-right diagonal */
+            .game-card::after {
+                content: ""; position: absolute; inset: 0; pointer-events: none;
+                background: linear-gradient(to top right, #1a1a1a 45%, rgba(26,26,26,0) 62%);
+            }
+            .card-text { position: absolute; left: 0; bottom: 0; z-index: 1; padding: 10px 12px; max-width: 70%; }
+            .card-title { font-size: 15px; font-weight: 700; color: #fff; }
+            .card-desc { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.35; }
+            @media (max-width: 600px) {
+                .card-title { font-size: 12px; }
+                .card-desc { font-size: 9px; }
+            }
+
             img { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
         </style>
     </head>
     <body>
         <header style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; text-align: center;">
-            <!-- "Play Pixel art game" styled clearly as an interactive hyperlink -->
-            <a href="pixel.html" class="primary-btn">🎮 Play Pixel art game</a>
-            <a href="centaur.html" class="primary-btn">🎮 infinate digging game (beta)</a>
-            <a href="match3burger.html" class="primary-btn">🎮 match burgers! (match 3 game)</a>
-            <a href="stackup.html" class="primary-btn">🎮 simple stackup game</a>
-            <a href="https://liangforstudy.github.io/Device_Knight/" class="primary-btn">🎮 DEVICE_KNIGHT</a>
-            <a href="https://liangforstudy.github.io/fla-viewer-fix/" class="primary-btn">🎮 Flash 8 Project Viewer</a>
-            
-			<a href="subway.html" class="secondary-btn">my subway map editor</a>
-       
-            <a href="greninja.html" class="secondary-btn">greninja game (wip!!)</a>
-            <a href="premerepro.html" class="secondary-btn">video editor</a>
-            <a href="charactor.html" class="secondary-btn">Create your own character</a>
+            <!-- Thumbnails live in assets/media/thumbs/; a missing one just leaves the card empty -->
+            <h2 class="card-section">Games</h2>
+            <div class="card-grid">
+                <a href="pixel.html" class="game-card"><img src="assets/media/thumbs/pixel.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Pixel Art</div><div class="card-desc">Draw and animate pixel art right in your browser.</div></div></a>
+                <a href="centaur.html" class="game-card"><img src="assets/media/thumbs/centaur.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Infinite Digging (beta)</div><div class="card-desc">A smooth voxel sandbox. Dig tunnels and mold the ground.</div></div></a>
+                <a href="match3burger.html" class="game-card"><img src="assets/media/thumbs/match3burger.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Match Burgers!</div><div class="card-desc">A match-3 puzzle game with burgers.</div></div></a>
+                <a href="stackup.html" class="game-card"><img src="assets/media/thumbs/stackup.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Stackup</div><div class="card-desc">A simple stacking game. How high can you go?</div></div></a>
+                <a href="https://liangforstudy.github.io/Device_Knight/" class="game-card"><img src="assets/media/thumbs/device_knight.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">DEVICE_KNIGHT</div><div class="card-desc">An action game in its own project.</div></div></a>
+                <a href="https://liangforstudy.github.io/fla-viewer-fix/" class="game-card"><img src="assets/media/thumbs/fla-viewer.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Flash 8 Project Viewer</div><div class="card-desc">Open and play old Flash 8 project files.</div></div></a>
+            </div>
+
+            <h2 class="card-section">Tools &amp; more</h2>
+            <div class="card-grid">
+                <a href="subway.html" class="game-card"><img src="assets/media/thumbs/subway.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Subway Map Editor</div><div class="card-desc">Design your own transit maps.</div></div></a>
+                <a href="greninja.html" class="game-card"><img src="assets/media/thumbs/greninja.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Greninja (wip!!)</div><div class="card-desc">A Greninja game, still in progress.</div></div></a>
+                <a href="premerepro.html" class="game-card"><img src="assets/media/thumbs/premerepro.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Video Editor</div><div class="card-desc">Cut and edit videos in the browser.</div></div></a>
+                <a href="charactor.html" class="game-card"><img src="assets/media/thumbs/charactor.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Character Creator</div><div class="card-desc">Create your own character.</div></div></a>
+            </div>
+
             <a href="video.html" class="secondary-btn">Join my Discord!</a>
             <a href="video.html" style="color: var(--text); text-decoration: none; font-weight: 700; font-size: 0.6rem;">Please Unmute Video</a>
         </header>
