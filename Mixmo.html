@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Gait Workshop</title>
+<style>
+:root{--ink:#3a2a1c;--paper:#f4e8cf;--paper2:#ead9b6;--accent:#8a3b2a;--gold:#b8862f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+h1{font-size:22px;margin:10px 16px 2px;font-style:italic;letter-spacing:.5px}
+.sub{margin:0 16px 8px;font-size:14px;opacity:.75}
+html,body{height:100%;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;overflow:hidden}
+#top{flex:0 0 auto;display:flex;flex-direction:column;overflow:hidden;height:55%;max-height:55%;padding-bottom:8px}
+#bot{flex:1 1 auto;min-height:120px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#split{flex:0 0 44px;background:#d8c39a;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);cursor:row-resize;touch-action:none;position:relative}
+#split::before{content:"";position:absolute;left:50%;top:50%;width:36px;height:4px;margin:-2px 0 0 -18px;border-radius:2px;background:#7d6a52}
+#split.dragging::before{background:#2f7de1}
+#view{position:relative;flex:1;min-height:0;margin:0 16px;border:3px double var(--ink);border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,#fbf3df,#e8d3a8);touch-action:none}
+#cv{width:100%;height:100%;display:block}
+#hint{position:absolute;left:10px;bottom:8px;font-size:12px;opacity:.6;pointer-events:none}
+.row{display:flex;gap:8px;margin:10px 16px;flex-wrap:wrap}
+button{font-family:inherit;font-size:16px;min-height:44px;min-width:44px;padding:0 14px;border:2px solid var(--ink);border-radius:10px;background:var(--paper2);color:var(--ink)}
+button.on{background:var(--ink);color:var(--paper)}
+.seg{display:flex;flex:1}
+.seg button{flex:1;border-radius:0;margin-left:-2px}
+.seg button:first-child{border-radius:10px 0 0 10px;margin-left:0}
+.seg button:last-child{border-radius:0 10px 10px 0}
+fieldset{margin:10px 16px;border:2px solid var(--ink);border-radius:12px;padding:6px 12px 10px;background:#f8eed8}
+legend{font-style:italic;font-weight:bold;padding:10px 6px;min-height:44px;cursor:pointer;user-select:none;-webkit-user-select:none}
+legend::before{content:"\25BE  ";font-style:normal}
+fieldset.collapsed legend::before{content:"\25B8  "}
+fieldset.collapsed>:not(legend){display:none}
+fieldset.collapsed{padding:0 12px}
+fieldset.collapsed>legend{float:left;width:100%;margin:0;padding:10px 6px}
+fieldset.collapsed::after{content:"";display:block;clear:both}
+.sl{display:grid;grid-template-columns:1fr 54px;align-items:center;column-gap:8px}
+.sl label{font-size:15px;grid-column:1/3;margin-top:4px}
+input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--accent);touch-action:pan-y}
+.val{font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+#gait{width:100%;height:84px;display:block}
+.gaitMini{width:100%;display:block;position:sticky;top:0;z-index:2;background:#f8eed8;border-bottom:1px solid var(--ink);padding-bottom:2px}
+textarea{width:100%;font-size:16px;font-family:Menlo,monospace;height:120px;border:2px solid var(--ink);border-radius:10px;background:#fffaf0;color:var(--ink);padding:8px}
+#msg{margin:0 16px;min-height:20px;font-size:14px;color:var(--accent)}
+.lbl{font-size:15px;align-self:center}
+#scrub.morph{accent-color:#c4462f;filter:hue-rotate(0deg)}#scrub.morph::-webkit-slider-runnable-track{background:#e9b7a8;border-radius:4px}
+#scrubWrap{flex:1;min-width:0;position:relative;display:flex;align-items:center}#scrubWrap input{width:100%}
+#scrubMarks{position:absolute;inset:0;pointer-events:none}
+.mk{position:absolute;top:9px;bottom:9px;width:4px;margin-left:-2px;background:var(--mk,#3a2a1c);border-radius:2px;box-shadow:0 0 0 1.5px var(--paper)}
+#status{display:flex;align-items:flex-start;gap:8px;margin:6px 16px 0;font-size:13px;line-height:1.3;height:52px;overflow:hidden;flex:0 0 auto}   /* fixed height: text changing length never shifts the viewport */
+#stText{flex:1;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;padding-top:2px}
+#stTag{flex:0 0 auto;font:600 11px/1 -apple-system,system-ui,sans-serif;letter-spacing:.08em;padding:4px 7px;border-radius:6px;border:1.5px solid var(--ink);color:var(--ink)}
+#status.morph #stTag{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.crow{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.crow label{display:flex;flex-direction:column;gap:4px;font-size:14px;flex:1;min-width:84px}.crow input[type=color]{width:100%;height:44px;border:2px solid var(--ink);border-radius:10px;background:var(--paper2);padding:2px}
+[hidden]{display:none!important}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 0}.grid2 button.on{background:var(--ink);color:var(--paper)}
+.tb{flex:1;min-width:0;padding:0 2px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.pick{flex:1;min-width:0;font-family:inherit;font-size:16px;min-height:44px;padding:0 36px 0 14px;border:2px solid var(--ink);border-radius:10px;color:var(--paper);background:var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23f4e8cf' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center;-webkit-appearance:none;appearance:none}
+#editSel{background-color:var(--paper2);color:var(--ink);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%233a2a1c' stroke-width='2'/%3E%3C/svg%3E")}
+
+/* ---------- desktop interface (html.desk = compact controls; html.side = view left, controls right) ---------- */
+html.desk button{min-height:30px;min-width:30px;font-size:14px;padding:0 10px;border-width:1.5px;border-radius:7px}
+html.desk .pick{min-height:30px;font-size:14px;border-width:1.5px;border-radius:7px}
+html.desk input[type=range]{height:24px}
+html.desk .row{margin:6px 12px;gap:6px}
+html.desk fieldset{margin:8px 12px;padding:4px 10px 8px;border-width:1.5px}
+html.desk legend{min-height:0;padding:4px 6px}
+html.desk fieldset.collapsed>legend{padding:4px 6px}
+html.desk .sl label{font-size:13px;margin-top:2px}
+html.desk .val,html.desk .lbl{font-size:13px}
+html.desk .crow input[type=color]{height:30px}
+html.desk textarea{font-size:13px}
+html.desk h1{font-size:18px;margin:8px 12px 2px}
+html.desk .sub{font-size:13px;margin:0 12px 6px}
+html.desk #view{margin:0 12px}
+html.desk #split{flex-basis:12px}
+html.side #app{flex-direction:row}
+html.side #top{height:100%!important;max-height:none!important;width:62%;flex:0 0 auto;padding:6px 0}
+html.side #split{flex:0 0 10px;cursor:col-resize;border:0;border-left:1px solid var(--ink);border-right:1px solid var(--ink)}
+html.side #split::before{width:4px;height:36px;margin:-18px 0 0 -2px}
+html.side #bot{flex:1 1 auto;min-width:300px;height:100%}
+.uiSw{font:600 12px/1 -apple-system,system-ui,sans-serif}
+
+/* per-slider reset button (top right of each slider row) */
+.sl .rs{grid-column:2;grid-row:1;justify-self:end;align-self:end;min-height:32px;min-width:40px;padding:0 8px;font-size:17px;line-height:1;color:rgba(138,59,42,.35);border-color:rgba(58,42,28,.35);margin:2px 0}
+.sl.changed .rs{color:var(--accent);border-color:var(--ink)}
+html.desk .sl .rs{min-height:22px;min-width:30px;padding:0 6px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="app"><div id="top">
+<div class="row" style="margin:8px 16px;flex-wrap:nowrap;gap:6px"><select id="charSel" aria-label="Character" class="pick" style="flex:0.8"></select><select id="modeSel" aria-label="Animation" class="pick"></select><button id="play" class="on">Pause</button></div>
+<div class="row" style="margin:0 16px 8px;flex-wrap:nowrap;gap:6px"><button class="tb" id="tL" aria-label="Turn left 90 degrees">&#8630; 90&deg;</button><button class="tb" id="tR" aria-label="Turn right 90 degrees">90&deg; &#8631;</button><button class="tb" id="tU" aria-label="Turn around">&#10226; 180&deg;</button><button class="tb" id="tS" aria-label="Spin on the spot">Spin</button><button class="tb" id="tF" aria-label="Walk over onto the other end" hidden>Over</button><button class="tb" id="tC" aria-label="Flip up onto the ceiling" hidden>Ceiling</button></div>
+<div id="view"><canvas id="cv"></canvas><div id="hint">1 finger / drag: orbit - 2 fingers / wheel: zoom - 2 fingers / right-drag: pan - double-tap: reset</div></div>
+<div class="row" style="margin:6px 16px 0;flex-wrap:nowrap;align-items:center"><button id="prevF" aria-label="Previous frame">&#9664;</button><span id="scrubWrap"><input type="range" id="scrub" min="0" max="1" step="0.005" value="0"><span id="scrubMarks"></span></span><button id="nextF" aria-label="Next frame">&#9654;</button><span class="val" id="scrubV" hidden>0</span><button id="stepBlend" aria-label="How mode switches play while paused" style="padding:0 6px;font-size:13px;line-height:1.1" class="on">Switch:<br>by frame</button></div>
+<div id="status" aria-live="polite"><span id="stTag">LOOP</span><span id="stText">Walk</span></div>
+<div class="row" id="moodRow" style="margin:2px 16px 0;flex-wrap:nowrap;align-items:center"><span class="lbl">Tired</span><input type="range" id="mood" min="0" max="1" step="0.01" value="1" style="flex:1"><span class="lbl">Happy</span></div>
+</div><div id="split"></div><div id="bot">
+<h1>The Curious Gait of a Three-Legged Sergal</h1>
+<p class="sub">Drag to turn him about, pinch to look closer, slide two fingers to move the view.</p>
+<fieldset id="robotLook" hidden><legend>Robot look</legend>
+<div class="sl"><label>Bone stretch allowed</label><input type="range" id="boneTol" min="0" max="0.3" step="0.01" value="0"><span class="val" id="boneTolV">0%</span></div><div class="row" style="margin:6px 0"><button id="boneShow">Bone check</button></div>
+<div class="sl"><label>Shape (0 = boxes, 1 = cylinders)</label><input type="range" id="rMorph" min="0" max="1" step="0.05" value="0.35"><span class="val" id="rMorphV">0.35</span></div>
+<div class="row" style="margin:6px 0;flex-wrap:nowrap"><span class="lbl">Skin:</span><select id="rSkin" class="pick" aria-label="Skin"><option value="robot">Robot (boxes)</option><option value="sergal">Sergal fur</option><option value="dino">Dinosaur</option><option value="roo">Kangaroo</option></select></div>
+<div class="row" style="margin:6px 0;flex-wrap:nowrap"><span class="lbl">Top middle limb ends in:</span><div class="seg" id="rHead"><button data-h="1" class="on">Head</button><button data-h="0">Paw</button></div></div>
+<div class="sl"><label>Body segments</label><input type="range" id="rSeg" min="1" max="3" step="1" value="1"><span class="val" id="rSegV">1</span></div>
+<div id="midSegRow" hidden><div class="sl"><label>Middle section thickness (x normal)</label><input type="range" id="rMidSeg" min="0.3" max="1" step="0.05" value="1"><span class="val" id="rMidSegV">1</span></div>
+<div class="sl"><label>Middle section length (x equal share; body length stays the same)</label><input type="range" id="rMidLen" min="0.2" max="2.4" step="0.05" value="1"><span class="val" id="rMidLenV">1</span></div></div>
+<div class="sl"><label>Tail &amp; neck length (middle limb at each end), x normal</label><input type="range" id="rMid" min="1" max="2" step="0.05" value="1"><span class="val" id="rMidV">1</span></div>
+<div class="sl"><label>Body length</label><input type="range" id="rLen" min="16" max="140" step="1" value="100"><span class="val" id="rLenV">100</span></div>
+<div class="sl"><label>Body thickness</label><input type="range" id="rRad" min="6" max="24" step="0.5" value="13"><span class="val" id="rRadV">13</span></div>
+<div class="crow"><label>Body<input type="color" id="cBody" value="#e8b923"></label><label>Limbs<input type="color" id="cLimb" value="#d9a514"></label><label>Joints<input type="color" id="cJoint" value="#2d2a26"></label></div>
+<div class="crow"><label>Paws, end A<input type="color" id="cPawA" value="#2d2a26"></label><label>Paws, end B<input type="color" id="cPawB" value="#c4462f"></label></div>
+<div class="row" style="margin:8px 0 0;flex-wrap:nowrap"><span class="lbl">Six-leg gait:</span><div class="seg" id="gaitStyle"><button data-g="dog">Dog</button><button data-g="insect">Spider / insect</button></div></div>
+<p class="sub" style="margin:4px 0 0">Applies to the mode picked under "Editing".</p>
+<div class="row" style="margin:10px 0 0;flex-wrap:nowrap"><span class="lbl">180&deg; when on 4, 5 or 6 legs:</span></div>
+<div class="grid2" id="lyingTurn"><button data-t="swap" class="on">Swap ends</button><button data-t="turn">Turn round</button></div>
+<p class="sub" style="margin:4px 0">Swap ends: he stops and the other end leads. Turn round: the body swings round; a shorter body turns faster.</p>
+<div class="row" style="margin:10px 0 0;flex-wrap:nowrap"><span class="lbl">Leaving six legs, stand on:</span></div>
+<div class="grid2" id="standEnd"><button data-e="keep" class="on">Back end</button><button data-e="front">Front end</button><button data-e="A">End A</button><button data-e="B">End B</button></div>
+<p class="sub" style="margin:4px 0 0">Back end tips him back onto the end behind him. Front end rises forward over his front legs, so he ends up the other way up, looking exactly the same but with the paw colours swapped. End A / End B pick a paw colour, whichever end it is on.</p>
+</fieldset>
+<fieldset id="sergalParts"><legend>Show parts</legend>
+<div class="sl"><label>Heads</label><input type="range" id="nHeads" min="0" max="2" step="1" value="2"><span class="val" id="nHeadsV">2</span></div>
+<div class="sl"><label>Arms</label><input type="range" id="nArms" min="0" max="4" step="1" value="4"><span class="val" id="nArmsV">4</span></div>
+<div class="sl"><label>Lion tails</label><input type="range" id="nTails" min="0" max="2" step="1" value="2"><span class="val" id="nTailsV">2</span></div>
+</fieldset>
+<fieldset><legend>Terrain</legend>
+<div class="row" style="margin:6px 0"><div class="seg" id="terrain"><button data-t="flat" class="on">Flat</button><button data-t="hills">Hills</button><button data-t="bumpy">Bumpy</button><button data-t="steps">Steps</button></div></div>
+<div class="sl"><label>Height</label><input type="range" id="tH" min="0" max="40" step="0.5" value="12"><span class="val" id="tHV">12</span></div>
+<div class="sl"><label>Length / spacing</label><input type="range" id="tLen" min="20" max="400" step="5" value="160"><span class="val" id="tLenV">160</span></div>
+<div class="sl"><label>Lean into slopes (0-1)</label><input type="range" id="tLean" min="0" max="1.5" step="0.05" value="0.6"><span class="val" id="tLeanV">0.6</span></div>
+<div class="sl"><label>Thigh spring (low = soft and floaty, high = stiff)</label><input type="range" id="tSpring" min="5" max="400" step="5" value="150"><span class="val" id="tSpringV">150</span></div>
+<div class="sl"><label>Head steadiness (0 = rides the body, 1 = floats steady)</label><input type="range" id="tSteady" min="0" max="1" step="0.05" value="0.85"><span class="val" id="tSteadyV">0.85</span></div>
+<div class="row" style="margin:6px 0"><button id="tFeet" class="on">Feet follow ground</button><span class="lbl" style="margin-left:8px;font-size:13px">also plants paws on flat ground</span></div>
+</fieldset>
+<fieldset id="attach" class="sergalOnly"><legend>Where each leg joins the body</legend></fieldset>
+
+<div class="row">
+<button id="colors">Leg colours</button>
+</div>
+
+<fieldset><legend>Footfall chart</legend>
+<canvas id="gait"></canvas>
+<div class="sl"><label>Blend time between modes (s)</label><input type="range" id="blend" min="0" max="2" step="0.05" value="0.6"><span class="val" id="blendV">0.6</span></div>
+<div class="crow"><label>Morph part markers<input type="color" id="mkCol" value="#3a2a1c"></label><label>Hex code<input type="text" id="mkHex" value="#3a2a1c" maxlength="9" spellcheck="false" style="font-size:16px;height:44px;border:2px solid var(--ink);border-radius:10px;padding:0 8px;background:#fffaf0;color:var(--ink)"></label></div>
+</fieldset>
+
+<div class="row" style="flex-wrap:nowrap"><span class="lbl">Editing:</span><select id="editSel" aria-label="Animation to edit" class="pick"></select></div>
+<div class="row" id="emoodRow"><span class="lbl">Arms, heads &amp; tails for:</span><div class="seg" id="emoods"><button data-mo="t">Tired</button><button data-mo="h" class="on">Happy</button></div></div>
+<div id="sliders"></div>
+
+<fieldset><legend>Save &amp; load</legend>
+<p class="sub" style="margin:4px 0 8px">Copies the whole character: body shape, limb layout, robot look, and every mode's settings. Older settings-only text still loads.</p>
+<textarea id="json" spellcheck="false"></textarea>
+<div class="row" style="margin:8px 0 0">
+<button id="copy">Copy</button><button id="load">Apply text</button><button id="reset">Reset this mode</button>
+</div>
+</fieldset>
+<p id="msg"></p>
+<div class="row" style="align-items:center;flex-wrap:nowrap"><span class="lbl">Interface:</span><div class="seg" id="uiSw"><button data-ui="auto">Auto</button><button data-ui="touch">Touch</button><button data-ui="desk">Desktop</button></div></div>
+<div style="height:40px"></div>
+</div></div>
+
+<script>
+const META=[
+ ["Timing",[["speed","Cycles per second",0,4,0.05],["travel","Ground speed",0,300,1],["phF","Tail leg phase",0,1,0.01],["phBL","Left leg phase",0,1,0.01],["phBR","Right leg phase",0,1,0.01]]],
+ ["Legs",[["stride","Stride swing (deg)",0,70,1],["lift","Paw lift (deg)",0,100,1],["thigh","Thigh angle (deg)",-30,70,1],["knee","Knee bend (deg)",0,130,1],["hock","Hock bend (deg)",0,130,1],["splay","Stool splay (deg)",0,35,1],["seek","Foothold search on terrain (reach for higher ground)",0,40,1]]],
+ ["Leg rest pose (per leg)",[
+  ["rotF","Tail leg - turn (deg)",-180,180,1],["thF","Tail leg - thigh (deg)",-60,60,1],["knF","Tail leg - knee (deg)",-60,60,1],["hkF","Tail leg - hock (deg)",-60,60,1],
+  ["rotBL","Left leg - turn (deg)",-180,180,1],["thBL","Left leg - thigh (deg)",-60,60,1],["knBL","Left leg - knee (deg)",-60,60,1],["hkBL","Left leg - hock (deg)",-60,60,1],
+  ["rotBR","Right leg - turn (deg)",-180,180,1],["thBR","Right leg - thigh (deg)",-60,60,1],["knBR","Right leg - knee (deg)",-60,60,1],["hkBR","Right leg - hock (deg)",-60,60,1]]],
+ ["Body",[["bob","Bounce",0,15,0.1],["bobMul","Bounces per cycle",1,4,1],["sway","Side sway (deg)",0,15,0.5],["lean","Forward lean (deg)",-10,130,1],["hipBob","Side hips rise & fall with each step",0,15,0.5],["shoulderBob","Shoulders rise & fall with each step",0,15,0.5]]],
+ ["Upper arms (top pair)",[["uSwing","Swing (deg)",0,90,1],["uRaise","Outward (deg)",-20,90,1],["uElbow","Elbow bend (deg)",0,150,1],["uElbowSwing","Elbow pump (deg)",0,90,1],["uSync","Left/right sync (0 alternate, 1 together)",0,1,0.05],["uPhase","Timing vs cycle (0-1)",0,1,0.01]]],
+ ["Lower arms (bottom pair)",[["lSwing","Swing (deg)",0,90,1],["lRaise","Outward (deg)",-20,90,1],["lElbow","Elbow bend (deg)",0,150,1],["lElbowSwing","Elbow pump (deg)",0,90,1],["lSync","Left/right sync (0 alternate, 1 together)",0,1,0.05],["lPhase","Timing vs cycle (0-1)",0,1,0.01]]],
+ ["Pair sync",[["pairSync","Lower pair copies upper pair (0 independent, 1 identical)",0,1,0.05]]],
+ ["On all fours",[["armPlant","Hands on the ground (0 = swinging, 1 = planted like paws)",0,1,0.05],["armReach","Hand reach in front of shoulders",-20,40,1],["armLift","Hand lift while stepping",0,30,1],["armLen","Arm length when planted (x normal)",1,2,0.05]]],
+ ["Two heads",[["neck","Neck spread (deg)",0,50,1],["headBob","Head nod",0,15,0.5],["headTurn","Heads glance (deg)",0,40,1],["headDroop","Head droop (deg)",-30,60,1]]],
+ ["Lion tails",[["tailSwing","Tail swish (deg)",0,60,1],["tailLift","Tail lift (deg)",-40,60,1],["tailCurl","Tail curl (deg)",-10,30,1]]]
+];
+const DEF={
+ idle:{speed:.35,travel:0,phF:0,phBL:.33,phBR:.67,stride:0,lift:0,thigh:18,knee:55,hock:45,splay:14,bob:1.2,bobMul:1,sway:1,lean:0,armSwing:4,armRaise:10,elbow:25,neck:22,headBob:1.5,headTurn:12,tailSwing:10,tailLift:8,tailCurl:14},
+ walk:{speed:.9,travel:62,phF:0,phBL:.33,phBR:.67,stride:24,lift:32,thigh:20,knee:55,hock:45,splay:12,bob:2.5,bobMul:3,sway:3,lean:6,armSwing:20,armRaise:10,elbow:32,neck:24,headBob:3,headTurn:6,tailSwing:18,tailLift:14,tailCurl:14},
+ run:{speed:1.8,travel:175,phF:0,phBL:.5,phBR:.5,stride:40,lift:55,thigh:28,knee:62,hock:52,splay:10,bob:6,bobMul:2,sway:2,lean:18,armSwing:38,armRaise:22,elbow:75,neck:28,headBob:6,headTurn:3,tailSwing:24,tailLift:30,tailCurl:8},
+ gallop:{speed:1.6,travel:210,phF:0,phBL:.5,phBR:.5,stride:40,lift:50,thigh:30,knee:62,hock:52,splay:10,bob:3,bobMul:2,sway:1,lean:105,armSwing:30,armRaise:10,elbow:30,neck:34,headBob:3,headTurn:0,tailSwing:16,tailLift:22,tailCurl:6}
+};
+for(const m in DEF)for(const s of ["F","BL","BR"])for(const k of ["rot","th","kn","hk"])DEF[m][k+s]=0;
+DEF.idle.seek=0;DEF.walk.seek=0;DEF.run.seek=20;DEF.gallop.seek=20;
+for(const m in DEF){const d=DEF[m];d.rotF=180;
+ for(const x of ["u","l"])Object.assign(d,{[x+"Swing"]:d.armSwing,[x+"Raise"]:d.armRaise,[x+"Elbow"]:d.elbow,[x+"ElbowSwing"]:Math.round(d.armSwing*0.4),[x+"Sync"]:0});
+ d.uPhase=0;d.lPhase=0.5;d.pairSync=0;delete d.armSwing;delete d.armRaise;delete d.elbow}
+DEF.idle.headDroop=DEF.walk.headDroop=DEF.run.headDroop=DEF.gallop.headDroop=0;
+Object.assign(DEF.idle,{hipBob:0,shoulderBob:0});Object.assign(DEF.walk,{hipBob:0,shoulderBob:0});Object.assign(DEF.run,{hipBob:0,shoulderBob:0});Object.assign(DEF.gallop,{hipBob:0,shoulderBob:0});
+for(const m in DEF){DEF[m].armPlant=0;DEF[m].armReach=12;DEF[m].armLift=8;DEF[m].armLen=1}
+// on all fours: hands planted like paws; the pairs land just after the legs push off, left/right nearly together
+// dog-style rotary gallop: hind legs land one after another close together, then the forelimbs
+// (here two pairs) land in quick succession half a cycle later, with a gathered/stretched spine
+Object.assign(DEF.gallop,{phF:0,phBL:0.08,phBR:0.16,armPlant:1,armReach:16,armLen:1.7,lean:88,uPhase:0.5,lPhase:0.6,uSync:0.85,lSync:0.85,bob:7,bobMul:1,speed:2.3,travel:190});
+const MOOD_GROUPS=["Upper arms (top pair)","Lower arms (bottom pair)","Pair sync","Two heads","Lion tails"];
+const MOODK=META.filter(([g])=>MOOD_GROUPS.includes(g)).flatMap(([,l])=>l.map(x=>x[0]));
+for(const m in DEF){const d=DEF[m];
+ for(const k of MOODK)d[k+"_t"]=d[k];
+ // a tired starting point: small droopy arm swings, hanging heads, low lazy tails
+ for(const x of ["u","l"]){d[x+"Swing_t"]=Math.round(d[x+"Swing"]*0.35);d[x+"Raise_t"]=Math.round(d[x+"Raise"]*0.3);d[x+"ElbowSwing_t"]=Math.round(d[x+"ElbowSwing"]*0.4);d[x+"Elbow_t"]=Math.round(d[x+"Elbow"]*0.6)}
+ d.headDroop_t=28;d.headTurn_t=Math.round(d.headTurn*0.4);d.neck_t=Math.round(d.neck*0.8);
+ d.tailLift_t=-32;d.tailSwing_t=Math.round(d.tailSwing*0.4);d.tailCurl_t=4}
+let MOOD=1,editMood="h";
+function moodMix(p){const q={...p};for(const k of MOODK){const t=p[k+"_t"];if(t!==undefined)q[k]=t+(p[k]-t)*MOOD}return q}
+let P=JSON.parse(JSON.stringify(DEF));let CHAR="sergal",METAC=META,DEFC=DEF;
+let mode="walk",editMode="walk",from={...P.walk},blendU=1,cur={...P.walk};
+let phase=0,playing=true,showColors=false,groundOff=0;
+// groundOff = how far he has travelled. Advancing the cycle by d moves him d*(distance per cycle),
+// so playing, scrubbing and frame-stepping all move him the same way and planted paws never slide.
+// turning: he has a heading and a position in the world; the terrain is fixed in the world
+let DIR=1;   // +1: he travels toward his front end; -1: on all six, the other end leads (after a 180)
+let HEAD=0,HEAD_T=0,OMEGA=0,POS=[0,0],TRAVK=1,SKIDLEAN=0,BOOST=0,TURN={st:null,t:0,fast:false};
+const effSpeed=()=>Math.max(cur.speed,BOOST);
+const dirNow=()=>((typeof LYING!=="undefined"&&LYING.has(mode))||(TURNM&&TURNM.kind==="U6"))?DIR:DIR+(1-DIR)*ease(blendU);   // leaving all six while reversed: ease back to forwards
+const perCycle=()=>effSpeed()>0.01?cur.travel*TRAVK*dirNow()/effSpeed():0;
+// parts of multi-part morphs, as [start (0-1), name]; markers on the scrubber show where each begins
+function morphParts(kind){return({
+ skid:[[0,"skidding"],[0.35,"whipping round"],[0.65,"speeding off"]],
+ up:[[0,"hop & turn"],[0.6,"settling onto the ceiling"]],
+ down:[[0,"letting go"],[0.4,"flip & drop"]]})[kind]||null}
+const partAt=(parts,t)=>{let i=0;while(i+1<parts.length&&t>=parts[i+1][0])i++;return i};
+let STEPBLEND=true,BLENDFROM=null,BLENDP0=0,BLENDTOT=1,TURNREC=null;
+// ---------- status line: is he looping, or in the middle of a morph? ----------
+const modeName=m=>{const r=MODES.find(x=>x[0]===m);return r?r[1]:m};
+const FPC=24;   // frames per cycle, same as the frame stepper
+function showStatus(){
+ const parts=[],sp=Math.max(0.05,effSpeed());
+ if(blendU<0.999&&BLENDFROM){const bt=+$("blend").value,tot=Math.max(1,Math.round(bt*sp*FPC));
+  parts.push(`${modeName(BLENDFROM)} → ${modeName(mode)}, frame ${Math.min(BLENDTOT,Math.floor(blendU*BLENDTOT)+1)}/${BLENDTOT}`)}
+ if(typeof FLIP!=="undefined"&&FLIP){const t=flipT(),tot=Math.max(1,Math.round(FLIP.len*FPC));
+  const pp=morphParts(FLIP.kind),pi=pp?partAt(pp,t):0;
+  if(t>=0&&t<1)parts.push(`${{ends:"Flip",up:"Flip up to ceiling",down:"Drop from ceiling",rise:"Rise onto front end"}[FLIP.kind]}${pp?` part ${pi+1}/${pp.length} (${pp[pi][1]})`:""}, frame ${Math.min(tot,Math.floor(t*tot)+1)}/${tot}`)}
+ if(typeof WALKOVER!=="undefined"&&WALKOVER)parts.unshift("Over: "+(WALKOVER.stage===1?"dropping onto all six":"rising onto the other end"));
+ if(typeof TURNM!=="undefined"&&TURNM){const T=TURNM,tot=Math.max(1,Math.round(T.len*FPC)),t=Math.max(0,Math.min(1,(phase-T.p0)/T.len)),st=turnShape(T,t)[3];
+  const pp=T.skid?morphParts("skid"):null,pi=pp?partAt(pp,t):0;
+  parts.push(`${T.label}${pp?` part ${pi+1}/${pp.length} (${pp[pi][1]})`:""}, frame ${Math.min(tot,Math.floor(t*tot)+1)}/${tot}`)}
+ const el=$("status"),morph=parts.length>0;el.classList.toggle("morph",morph);
+ $("stTag").textContent=morph?"MORPH":"LOOP";
+ $("stText").textContent=morph?parts.join(" + "):modeName(mode)+GECKOtxt()+(SPIN?", spinning":"")+", frame "+(Math.round(frac(phase)*FRAMES)%FRAMES+1)+"/"+FRAMES;}
+const GECKOtxt=()=>(typeof GECKO!=="undefined"&&GECKO&&CHAR==="robot")?" (on the ceiling)":"";
+setTimeout(()=>{$("stepBlend").onclick=()=>{STEPBLEND=!STEPBLEND;$("stepBlend").innerHTML="Switch:<br>"+(STEPBLEND?"by frame":"instant");$("stepBlend").classList.toggle("on",STEPBLEND)}});
+function advance(d){
+ // stepping/scrubbing while paused also steps a mode switch forward (or back) by the same amount of time
+ if(STEPBLEND&&!playing){const bt=+$("blend").value,sp=Math.max(0.05,effSpeed());blendU=bt<=0?1:Math.max(0,Math.min(1,blendU+d/sp/bt));
+  }
+ phase+=d;const dist=d*perCycle();groundOff+=dist;POS[0]+=Math.sin(HEAD)*dist;POS[1]+=Math.cos(HEAD)*dist;
+ if(typeof turnStep==="function")turnStep()}
+// where a paw planted at rest offset (rx,rz) will be, in today's body frame, dU cycles from now,
+// assuming the body keeps moving and turning as it is right now
+function predictFoot(rx,rz,dU,D){const sp=effSpeed();if(sp<0.01)return[rx,rz];
+ let dh=OMEGA*dU/sp;const rem=HEAD_T-HEAD;if(dU>0&&Math.abs(dh)>Math.abs(rem)&&Math.sign(dh)===Math.sign(rem))dh=rem;
+ const dist=dU*D,c=Math.cos(dh),s=Math.sin(dh);
+ if(SPIN&&!TURNM){const pz=SPIN.pz,z=rz-pz;return[rx*c+z*s,-rx*s+z*c+pz]}   // spinning on the spot: round the pivot
+ return[dist*Math.sin(dh/2)+rx*c+rz*s,dist*Math.cos(dh/2)-rx*s+rz*c]}
+function scrubTo(p){let d=p-frac(phase);if(d>0.5)d-=1;if(d<-0.5)d+=1;advance(d)}
+let yaw=0.7,pitch=0.28,zoom=1,panX=0,panY=0;
+const $=id=>document.getElementById(id);
+
+// ---------- UI ----------
+function buildSliders(){
+ const host=$("sliders");host.innerHTML="";
+ for(const [g,list] of METAC){
+  const fs=document.createElement("fieldset");fs.innerHTML=`<legend>${g}</legend>`+(g==="Timing"?`<canvas class="gaitMini"></canvas>`:"");
+  for(const [k0,l,mn,mx,st] of list){
+   const k=(editMood==="t"&&MOODK.includes(k0))?k0+"_t":k0;
+   const d=document.createElement("div");d.className="sl";
+   d.dataset.def=(DEFC[editMode]||{})[k]??"";d.innerHTML=`<label>${l}</label><input type="range" min="${mn}" max="${mx}" step="${st}" value="${P[editMode][k]}"><span class="val">${P[editMode][k]}</span>`;
+   const r=d.querySelector("input"),v=d.querySelector(".val");
+   r.oninput=()=>{P[editMode][k]=+r.value;v.textContent=r.value;syncJSON()};
+   fs.appendChild(d);
+  }
+  host.appendChild(fs);
+ }
+ applyCollapsed();
+}
+document.querySelectorAll("#emoods button").forEach(b=>b.onclick=()=>{editMood=b.dataset.mo;
+ document.querySelectorAll("#emoods button").forEach(x=>x.classList.toggle("on",x===b));buildSliders()});
+const MODES_S=[["idle","Idle"],["walk","Walk"],["run","Run (upright)"],["gallop","Run on all fours"]];
+let MODES=MODES_S;
+function fillModeMenus(){for(const id of ["modeSel","editSel"])$(id).innerHTML=MODES.map(([k,n])=>`<option value="${k}">${n}</option>`).join("")}
+fillModeMenus();
+function segUI(){
+ $("modeSel").value=mode;$("editSel").value=editMode;
+}
+function characterFile(){const D=charDef(),clean=a=>a.map(({ik,...rest})=>rest);
+ const f={format:"tripod-character",version:1,character:CHAR,name:D.name,limbs:clean(D.limbs),modes:P};
+ if(CHAR==="sergal"){f.shape=SERGAL_SHAPE;f.attach=ATT}
+ else{f.shape={body:{len:BODY_L,radius:BODY_R}};f.look={...RLOOK}}
+ return f}
+function syncJSON(){if(typeof CHARACTERS==="undefined"){$("json").value=JSON.stringify(P,null,1);return}$("json").value=JSON.stringify(characterFile(),null,1)}
+function applyCharacterFile(o){
+ if(o.format!=="tripod-character"){for(const m of Object.keys(P))if(o[m])Object.assign(P[m],o[m]);return "Settings applied."}   // older settings-only text
+ if(o.character!==CHAR){$("charSel").value=o.character;$("charSel").onchange()}
+ for(const m of Object.keys(o.modes||{}))if(P[m])Object.assign(P[m],o.modes[m]);
+ const D=charDef();(o.limbs||[]).forEach((L,i)=>{if(D.limbs[i])Object.assign(D.limbs[i],L)});
+ if(o.character==="sergal"){if(o.shape)for(const k in o.shape)Object.assign(SERGAL_SHAPE[k],o.shape[k]);if(o.attach)for(const k in o.attach)Object.assign(ATT[k],o.attach[k])}
+ else{if(o.shape&&o.shape.body){BODY_L=o.shape.body.len;BODY_R=o.shape.body.radius;for(const L of RLIMBS)if(L.end==="T")L.v[1]=BODY_L;CEIL=ceilFor()}
+  if(o.look)Object.assign(RLOOK,o.look)}
+ return D.name+" loaded."}
+function say(t){$("msg").textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>$("msg").textContent="",3000)}
+$("modeSel").onchange=()=>{const m=$("modeSel").value;
+ if(m===mode)return;
+ BLENDFROM=mode;BLENDP0=phase;BLENDTOT=Math.max(1,Math.round((+$("blend").value)*FPC*((P[mode].speed||0.3)+(P[m].speed||0.3))/2));
+ if(CHAR==="robot"&&mode==="run6"&&m!=="run6"&&(STANDEND==="front"||((STANDEND==="A"||STANDEND==="B")&&STANDEND!==bottomEnd())))var riseNow=true;else riseNow=false;
+ from={...cur};blendU=0;mode=m;editMode=mode;segUI();buildSliders();
+ if(riseNow)startFlip("rise");   // started right away (no timer) so it also works frame by frame
+};
+$("editSel").onchange=()=>{editMode=$("editSel").value;segUI();buildSliders()};
+$("play").onclick=()=>{playing=!playing;$("play").textContent=playing?"Pause":"Play";$("play").classList.toggle("on",playing)};
+$("boneTol").oninput=e=>{BONETOL=+e.target.value;$("boneTolV").textContent=Math.round(BONETOL*100)+"%"};
+const boneUI=()=>{const b=$("boneShow");b.classList.toggle("on",BONESHOW);b.textContent="Bone check: "+(BONESHOW?"On":"Off");b.setAttribute("aria-pressed",BONESHOW)};
+$("boneShow").onclick=()=>{BONESHOW=!BONESHOW;boneUI()};setTimeout(boneUI);
+$("colors").onclick=()=>{showColors=!showColors;$("colors").classList.toggle("on",showColors)};
+$("scrub").oninput=()=>{if(playing)$("play").onclick();const m=morphNow();
+ if(m)m.set(+$("scrub").value);else scrubTo(+$("scrub").value);showFrame();showStatus()};
+// while a morph is running, the scrubber scrubs the morph (start -> end) instead of the loop cycle
+function morphNow(){
+ if(typeof FLIP!=="undefined"&&FLIP){const t=flipT();if(t>=0&&t<1){const f=FLIP;
+  return{name:"flip",parts:morphParts(f.kind),frames:Math.max(1,Math.round(f.len*FPC)),get:()=>Math.max(0,Math.min(1,flipT())),
+   set:v=>{advance(f.p0+(v>=0.999?1.0005:v)*f.len-phase);flipStep()}}}}   // dragging to the end finishes it
+ if(typeof TURNM!=="undefined"&&TURNM){const T=TURNM;return{name:"turn",parts:T.skid?morphParts("skid"):null,frames:Math.max(1,Math.round(T.len*FPC)),get:()=>Math.max(0,Math.min(1,(phase-T.p0)/T.len)),
+  set:v=>{advance(T.p0+(v>=0.999?1.0005:v)*T.len-phase);turnStep()}}}
+ if(blendU<0.999&&BLENDFROM)return{name:"blend",frames:BLENDTOT,get:()=>blendU,
+  set:v=>{const d=(v-blendU)*BLENDTOT/FPC,keep=STEPBLEND;STEPBLEND=false;advance(d);STEPBLEND=keep;if(v>=0.999){blendU=1;BLENDFROM=null}else blendU=Math.max(0,v)}};
+ return null}
+const FRAMES=24;
+function stepFrame(d){if(playing)$("play").onclick();
+ scrubTo((Math.round(frac(phase)*FRAMES)+d+FRAMES)%FRAMES/FRAMES);$("scrub").value=frac(phase);showFrame()}
+let markKey="";
+// marker colour: picker or typed/pasted hex, remembered on this device
+function setMarkCol(c){if(!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c))return false;document.documentElement.style.setProperty("--mk",c);
+ if(c.length===4)c="#"+[...c.slice(1)].map(x=>x+x).join("");$("mkCol").value=c;$("mkHex").value=c;try{localStorage.setItem("tripodMarkCol",c)}catch(e){}return true}
+setTimeout(()=>{try{const c=localStorage.getItem("tripodMarkCol");if(c)setMarkCol(c)}catch(e){}
+ $("mkCol").oninput=()=>setMarkCol($("mkCol").value);
+ $("mkHex").onchange=()=>{let v=$("mkHex").value.trim();if(v[0]!=="#")v="#"+v;if(!setMarkCol(v))say("Use a hex colour like #ff8800.")}});
+function drawMarks(parts){const key=parts?parts.map(p=>p[0]).join(","):"";if(key===markKey)return;markKey=key;
+ const host=$("scrubMarks");host.innerHTML="";if(!parts)return;
+ const pad=/iPhone|iPad|iPod/.test(navigator.userAgent)?14:8;   // half the slider thumb's width (iOS thumbs are bigger)
+ for(const [t,name] of parts.slice(1)){const d=document.createElement("span");d.className="mk";d.title=name;
+  d.style.left=`calc(${pad}px + (100% - ${2*pad}px) * ${t})`;host.appendChild(d)}}
+function showFrame(){const m=morphNow(),sc=$("scrub");drawMarks(m&&m.parts);
+ if(m){const v=m.get();if(document.activeElement!==sc||!scrubDrag)sc.value=v;$("scrubV").textContent="M"+Math.min(m.frames,Math.floor(v*m.frames)+1)+"/"+m.frames;sc.classList.add("morph")}
+ else{if(!scrubDrag)sc.value=frac(phase);$("scrubV").textContent="F"+(Math.round(frac(phase)*FRAMES)%FRAMES+1)+"/"+FRAMES;sc.classList.remove("morph")}}
+let scrubDrag=false;
+document.addEventListener("pointerdown",e=>{if(e.target.id==="scrub")scrubDrag=true},true);
+document.addEventListener("pointerup",()=>scrubDrag=false,true);document.addEventListener("pointercancel",()=>scrubDrag=false,true);
+$("mood").oninput=()=>{MOOD=+$("mood").value};
+$("prevF").onclick=()=>stepFrame(-1);$("nextF").onclick=()=>stepFrame(1);
+$("blend").oninput=()=>$("blendV").textContent=$("blend").value;
+$("copy").onclick=()=>{const t=$("json");t.select();
+ (navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).then(()=>say("Copied to clipboard."),()=>{try{document.execCommand("copy");say("Copied.")}catch(e){say("Select the text and copy it manually.")}})};
+$("load").onclick=()=>{let o;try{o=JSON.parse($("json").value)}catch(e){say("That text isn't valid JSON.");return}
+ const msg=applyCharacterFile(o);cur={...P[mode]};from={...cur};buildSliders();syncJSON();say(msg)};
+let resetArm=0;
+$("reset").onclick=()=>{const b=$("reset");
+ if(!resetArm){resetArm=1;b.textContent="Tap again to reset "+editMode;b.classList.add("on");setTimeout(()=>{resetArm=0;b.textContent="Reset this mode";b.classList.remove("on")},3000);return}
+ P[editMode]={...DEFC[editMode]};resetArm=0;b.textContent="Reset this mode";b.classList.remove("on");buildSliders();syncJSON();say(editMode+" reset.")};
+
+// ---------- collapsible sections (remembered across rebuilds) ----------
+let collapsed=new Set();
+try{const c=JSON.parse(localStorage.getItem("tripodCollapsed")||"[]");if(Array.isArray(c))collapsed=new Set(c)}catch(e){}
+const saveCollapsed=()=>{try{localStorage.setItem("tripodCollapsed",JSON.stringify([...collapsed]))}catch(e){}};
+document.addEventListener("click",e=>{const lg=e.target.closest("legend");if(!lg)return;
+ const fs=lg.parentElement,key=lg.textContent;fs.classList.toggle("collapsed");
+ fs.classList.contains("collapsed")?collapsed.add(key):collapsed.delete(key);saveCollapsed()});
+function applyCollapsed(){document.querySelectorAll("fieldset").forEach(fs=>{const lg=fs.querySelector("legend");if(lg)fs.classList.toggle("collapsed",collapsed.has(lg.textContent))})}
+
+// ---------- split-pane divider ----------
+(function(){
+ const app=$("app"),top=$("top"),sp=$("split");
+ const side=()=>document.documentElement.classList.contains("side"),key=()=>side()?"tripodSplitPctW":"tripodSplitPct";
+ const setPct=p=>{if(side()){top.style.width=p+"%"}else{top.style.height=top.style.maxHeight=p+"%"}resize()};
+ let drag=false,pct=55;
+ window.applySplit=()=>{top.style.width=top.style.height=top.style.maxHeight="";let s=NaN;try{s=parseFloat(localStorage.getItem(key()))}catch(e){}
+  pct=s>=15&&s<=85?s:(side()?62:55);setPct(pct)};
+ sp.addEventListener("pointerdown",e=>{drag=true;sp.classList.add("dragging");sp.setPointerCapture(e.pointerId)});
+ sp.addEventListener("pointermove",e=>{if(!drag)return;const r=app.getBoundingClientRect();
+  pct=Math.max(15,Math.min(85,side()?(e.clientX-r.left)/r.width*100:(e.clientY-r.top)/r.height*100));setPct(pct)});
+ const end=()=>{if(!drag)return;drag=false;sp.classList.remove("dragging");try{localStorage.setItem(key(),pct)}catch(e){}};
+ sp.addEventListener("pointerup",end);sp.addEventListener("pointercancel",end);
+})();
+
+// ---------- tap/drag anywhere on a slider track (iOS only drags the thumb natively) ----------
+(function(){
+ let st=null;
+ const setFrom=(r,x)=>{const b=r.getBoundingClientRect(),pad=14;
+  let f=Math.max(0,Math.min(1,(x-b.left-pad)/(b.width-pad*2)));
+  const mn=+r.min,mx=+r.max,s=+r.step||1;
+  r.value=Math.round((mn+f*(mx-mn))/s)*s;r.dispatchEvent(new Event("input",{bubbles:true}))};
+ document.addEventListener("pointerdown",e=>{const r=e.target;
+  if(r.tagName==="INPUT"&&r.type==="range")st={r,x:e.clientX,y:e.clientY,active:false}},true);
+ document.addEventListener("pointermove",e=>{if(!st)return;
+  const dx=e.clientX-st.x,dy=e.clientY-st.y;
+  if(!st.active&&Math.abs(dx)>6&&Math.abs(dx)>Math.abs(dy))st.active=true;
+  if(st.active)setFrom(st.r,e.clientX)},true);
+ document.addEventListener("pointerup",e=>{if(!st)return;
+  if(!st.active&&Math.hypot(e.clientX-st.x,e.clientY-st.y)<8)setFrom(st.r,e.clientX);st=null},true);
+ document.addEventListener("pointercancel",()=>st=null,true);
+})();
+
+// ---------- touch: orbit + pinch, guarded ----------
+const view=$("view"),ptrs=new Map();let gesture=null;
+view.addEventListener("pointerdown",e=>{
+ if(ptrs.size>=2)return; // ignore stray extra fingers
+ view.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(e.pointerType==="mouse"&&(e.button===1||e.button===2||e.shiftKey)){e.preventDefault();gesture="pan";return} // desktop: right / middle / shift-drag pans
+ if(ptrs.size===1&&!gesture)gesture="orbit";
+ else if(ptrs.size===2){gesture="pinch";const[a,b]=[...ptrs.values()];gesture={d:Math.hypot(a.x-b.x,a.y-b.y),z:zoom,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,px:panX,py:panY}}
+});
+view.addEventListener("pointermove",e=>{
+ const p=ptrs.get(e.pointerId);if(!p)return;
+ if(gesture==="pan"){panX+=e.clientX-p.x;panY+=e.clientY-p.y}
+ if(gesture==="orbit"){yaw+=(e.clientX-p.x)*0.01;pitch=Math.max(-0.2,Math.min(1.3,pitch+(e.clientY-p.y)*0.008))}
+ p.x=e.clientX;p.y=e.clientY;
+ if(gesture&&gesture.d){const[a,b]=[...ptrs.values()];zoom=Math.max(.4,Math.min(3,gesture.z*Math.hypot(a.x-b.x,a.y-b.y)/gesture.d));panX=gesture.px+(a.x+b.x)/2-gesture.mx;panY=gesture.py+(a.y+b.y)/2-gesture.my}
+});
+const up=e=>{if(!ptrs.delete(e.pointerId))return;if(ptrs.size===0)gesture=null;else if(gesture&&gesture.d)gesture="done"};
+view.addEventListener("pointerup",up);
+// desktop: wheel (or trackpad pinch) zooms toward the mouse; no right-click menu over the view
+view.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left-W/2-panX,cy=e.clientY-r.top-Hh*0.5-panY;
+ const d=e.deltaMode===1?e.deltaY*33:e.deltaY,z0=zoom;zoom=Math.max(.4,Math.min(3,zoom*Math.exp(-d*(e.ctrlKey?0.01:0.0015))));
+ const k=zoom/z0;panX-=cx*(k-1);panY-=cy*(k-1)},{passive:false});
+view.addEventListener("contextmenu",e=>e.preventDefault());view.addEventListener("dblclick",()=>{yaw=0.7;pitch=0.28;zoom=1;panX=panY=0});view.addEventListener("pointercancel",up);
+
+// ---------- math ----------
+const R=Math.PI/180;
+const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const rotX=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return[v[0],v[1]*c-v[2]*s,v[1]*s+v[2]*c]};
+const rotY=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return[v[0]*c+v[2]*s,v[1],-v[0]*s+v[2]*c]};
+const rotZ=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return[v[0]*c-v[1]*s,v[0]*s+v[1]*c,v[2]]};
+const frac=x=>x-Math.floor(x),ease=u=>u*u*(3-2*u);
+
+// ---------- rig ----------
+const C={fur:"#d6b483",furD:"#b8925e",belly:"#f3e2bf",tuft:"#7a4a22",ink:"#3a2a1c",ear:"#e9b9a0"};
+// ---------- sergal shape (pure data: everything about his body's layout lives here) ----------
+const SERGAL_SHAPE={
+ legSeg:[30,30,22],                                   // thigh, shin, foot lengths
+ torso:{len:42,rBase:15,rTop:12.5,belly:{from:[0,6,6],to:[0,36,6.5],r0:8.5,r1:7.5}},
+ arms:{pairs:[{y:38,key:"u",offset:0},{y:27,key:"l",offset:Math.PI}],shoulderX:13,upper:16,lower:15},
+ necks:{x:4,y:40,len:18},
+ tails:{root:[5,10,-13],segs:7,segLen:7,tuft:6.5}};
+const LEGS=[{n:"Tail leg",yaw:180,k:"phF",c:"#b5452f",tail:1},{n:"Left",yaw:60,k:"phBL",c:"#3f6f8f"},{n:"Right",yaw:300,k:"phBR",c:"#5d7f3a"}];
+const SHOW={nHeads:2,nArms:4,nTails:2};
+const ATT={phF:{x:0,y:0,z:-2.5},phBL:{x:9.5,y:0,z:5.5},phBR:{x:-9.5,y:0,z:5.5}};
+(function(){const host=$("attach");
+ LEGS.forEach(L=>["x","y","z"].forEach(ax=>{
+  const nm={x:"side to side",y:"up / down",z:"front / back"}[ax];
+  const d=document.createElement("div");d.className="sl";
+  d.innerHTML=`<label>${L.n} - ${nm}</label><input type="range" min="-40" max="40" step="0.5" value="${ATT[L.k][ax]}"><span class="val">${ATT[L.k][ax]}</span>`;
+  const r=d.querySelector("input"),v=d.querySelector(".val");
+  r.oninput=()=>{ATT[L.k][ax]=+r.value;v.textContent=r.value};
+  host.appendChild(d);
+ }));
+})();
+["nHeads","nArms","nTails"].forEach(id=>{const r=$(id);r.oninput=()=>{SHOW[id]=+r.value;$(id+"V").textContent=r.value}});
+const [L1,L2,L3]=SERGAL_SHAPE.legSeg;   // both characters currently share these leg lengths
+function legChain(p,th,o={th:0,kn:0,hk:0,dir:1}){
+ const sw=Math.cos(th)>0?Math.cos(th):0; // >0 while paw swings forward
+ const tA=(p.thigh+o.th+p.stride*o.dir*Math.sin(th))*R;
+ const sA=tA-(p.knee+o.kn+p.lift*sw)*R;
+ const mA=sA+(p.hock+o.hk+p.lift*0.7*sw)*R;
+ const d=a=>[0,-Math.cos(a),Math.sin(a)];
+ const k=mul(d(tA),L1),h=add(k,mul(d(sA),L2)),f=add(h,mul(d(mA),L3)),t=add(f,[0,0,9]);
+ return [k,h,f,t];
+}
+function restHeight(p){const c=legChain({...p,stride:0,lift:0},0);return -c[2][1]}
+
+let prims=[],G=0;
+// ---------- thigh spring: body height and slope lean follow the ground through a damped spring ----------
+const RAW={y:0,l:0},SPR={init:false,y:0,v:0,l:0,lv:0};
+const HRAW=[],HS=[];
+function springStep(dt){
+ HRAW.forEach((y,i)=>{const h=HS[i]||(HS[i]={init:false,y,v:0});if(!h.init){h.init=true;h.y=y;return}
+  const k=18,c=2*0.9*Math.sqrt(k);for(let j=0;j<4;j++){h.v+=((y-h.y)*k-h.v*c)*dt/4;h.y+=h.v*dt/4}});
+ if(!SPR.init){Object.assign(SPR,{init:true,y:RAW.y,l:RAW.l});return}
+ const k=TER.spring,c=2*0.85*Math.sqrt(k);
+ for(let i=0;i<4;i++){const h=dt/4;
+  SPR.v+=((RAW.y-SPR.y)*k-SPR.v*c)*h;SPR.y+=SPR.v*h;
+  SPR.lv+=((RAW.l-SPR.l)*k-SPR.lv*c)*h;SPR.l+=SPR.lv*h}}
+// ---------- terrain ----------
+const TER={type:"flat",h:12,len:160,lean:0.6,feet:true,spring:150,steady:0.85};
+document.querySelectorAll("#terrain button").forEach(b=>b.onclick=()=>{TER.type=b.dataset.t;document.querySelectorAll("#terrain button").forEach(x=>x.classList.toggle("on",x===b))});
+[["tH","h"],["tLen","len"],["tLean","lean"],["tSpring","spring"],["tSteady","steady"]].forEach(([id,k])=>{const r=$(id);r.oninput=()=>{TER[k]=+r.value;$(id+"V").textContent=r.value}});
+$("tFeet").onclick=()=>{TER.feet=!TER.feet;$("tFeet").classList.toggle("on",TER.feet)};
+// ground height: ground(x,z) takes a point in his body frame, groundW a fixed world point
+function ground(x,z){if(CHAR==="robot"&&GECKO&&!FLIP)return 0;const c=Math.cos(HEAD),s=Math.sin(HEAD);return groundW(POS[0]+x*c+z*s,POS[1]-x*s+z*c)}
+function groundW(x,w){const h=TER.h,L=TER.len,T=2*Math.PI;
+ switch(TER.type){
+  case "hills":return h*Math.sin(w*T/L+x*0.01);
+  case "bumpy":return h*(0.5*Math.sin(w*T/L+x*0.05)+0.3*Math.sin(w*T/L*2.3-x*0.09)+0.2*Math.sin(w*T/L*4.1+x*0.17));
+  case "steps":{const st=Math.floor(w/(L/6)),m=((st%8)+8)%8;return h*0.5*(m<4?m:8-m)-h}
+  default:return 0}}
+const tube=(a,b,ra,rb,col,bias=0)=>prims.push({t:0,a,b,ra,rb,col,bias,g:G});
+const dot=(a,r,col,bias=0)=>prims.push({t:1,a,b:a,ra:r,col,bias,g:G});
+
+
+// =====================================================================
+// ---------- shared locomotion engine (used by every character) ----------
+// =====================================================================
+// Footstep planner: where a limb planted at rest offset (rx,rz) should be at cycle position U.
+// Planted (stance) for the middle half of its cycle, otherwise arcing between two footholds.
+function planFootstep(rx,rz,U,liftAmt,FR,D,seek){const n=Math.floor(U),u=U-n;
+ const print=mid=>{const pr=predictFoot(rx,rz,mid-U,D);let x=pr[0],z=pr[1];
+  if(TER.feet&&seek>0.5&&TER.type!=="flat"){const SK=seek,wz=z+groundOff,st=2;let best=wz,bs=-1e9;
+   for(let k=-Math.ceil(SK/st);k<=Math.ceil(SK/st);k++){const c=Math.round(wz/st)*st+k*st,dz=Math.abs(c-wz);
+    if(dz>SK)continue;const sc=ground(x,c-groundOff)-dz*0.08;if(sc>bs){bs=sc;best=c}}
+   z=best-groundOff}
+  return[x,ground(x,z)+FR,z]};
+ if(u>=0.25&&u<=0.75){const t=print(n+0.5);return{tgt:t,gp:t,stance:true}}
+ const a0=u>0.75?n+0.5:n-0.5,s=(u>0.75?u-0.75:u+0.25)/0.5,P1=print(a0),P2=print(a0+1),e=s*s*(3-2*s);
+ let clear=0;for(let k=1;k<8;k++){const t=k/8,xx=P1[0]+(P2[0]-P1[0])*t,zz=P1[2]+(P2[2]-P1[2])*t;clear=Math.max(clear,ground(xx,zz)+FR-(P1[1]+(P2[1]-P1[1])*t))}
+ const arc=(liftAmt+clear+3)*Math.sin(Math.PI*s);
+ const t=[P1[0]+(P2[0]-P1[0])*e,P1[1]+(P2[1]-P1[1])*e+arc,P1[2]+(P2[2]-P1[2])*e];return{tgt:t,gp:[t[0],t[1]-arc,t[2]],stance:false}}
+// Two-angle leg solver: finds hip swing + leg fold so err(swing,fold) -> [0,0]. Warm-started from last frame.
+// blend two poses of one limb bone by bone: each bone turns from one direction to the other and its length
+// moves between the two lengths, so the limb can't fold up the way averaging joint positions does
+// splay a leg outwards by turning it at the hip (rather than shearing it, which stretched the bones)
+function splayV(v,out,sp){if(!sp)return v;const k=norm3(cross3([0,-1,0],out)),a=Math.atan(sp),c=Math.cos(a),s=Math.sin(a);
+ return add(add(mul(v,c),mul(cross3(k,v),s)),mul(k,dot3(k,v)*(1-c)))}
+function blendBones(root,A,B,w,ra=root,rb=root){const out=[];let prev=root,pa=ra,pb=rb;
+ for(let i=0;i<A.length;i++){const a=sub3(A[i],pa),b=sub3(B[i],pb),la=Math.hypot(...a),lb=Math.hypot(...b);
+  let d=add(mul(a,(1-w)/(la||1)),mul(b,w/(lb||1)));const ld=Math.hypot(...d);d=ld>1e-6?mul(d,1/ld):(la?mul(a,1/la):[0,-1,0]);
+  const p=add(prev,mul(d,la*(1-w)+lb*w));out.push(p);prev=p;pa=A[i];pb=B[i]}
+ return out}
+function solveLegIK(err,start){let x=start||[0,0];
+ for(let it=0;it<20;it++){const e=err(x[0],x[1]),e1=err(x[0]+1,x[1]),e2=err(x[0],x[1]+1);
+  const j11=e1[0]-e[0],j21=e1[1]-e[1],j12=e2[0]-e[0],j22=e2[1]-e[1],det=j11*j22-j12*j21;if(Math.abs(det)<1e-6)break;
+  const dx=(-e[0]*j22+e[1]*j12)/det,dy=(-e[1]*j11+e[0]*j21)/det;
+  x=[Math.max(-110,Math.min(110,x[0]+0.8*Math.max(-15,Math.min(15,dx)))),Math.max(-45,Math.min(115,x[1]+0.8*Math.max(-15,Math.min(15,dy))))];
+  if(Math.abs(e[0])+Math.abs(e[1])<0.05)break}
+ return x}
+// smooth minimum (no sudden kinks when the limiting value switches)
+const smin=(a,b,k=4)=>{const d=a-b;return d>160?b:b-k*Math.log(1+Math.exp(-d/k))};
+// turn everything that was built facing his own forward so it faces his heading in the world
+function faceHeading(){if(!HEAD)return;for(const q of prims){const same=q.b===q.a;q.a=rotY(q.a,HEAD);if(q.b)q.b=same?q.a:rotY(q.b,HEAD);
+ if(q.pts)q.pts=q.pts.map(v=>rotY(v,HEAD));if(q.fn)q.fn=rotY(q.fn,HEAD);if(q.n)q.n=rotY(q.n,HEAD)}}
+// smooth maximum: keeps the body at least `floor` high without a hard corner
+const smaxFloor=(v,floor,k=3)=>{const d=v-floor;return d>60?v:floor+k*Math.log(1+Math.exp(d/k))};
+const softMinAll=(vals,k=4)=>{const m0=Math.min(...vals);return m0-k*Math.log(vals.reduce((a,v)=>a+Math.exp(-(v-m0)/k),0))};
+
+function buildRig(p,ph){
+ p=moodMix(p);
+ prims=[];G=0;
+ const th=2*Math.PI*ph;
+ const H=restHeight(p),BOB=p.bob*(p.bobWave*0.5+0.5);
+ // body rides at the lowest ground any paw might plant on, so no leg has to over-reach
+ // ---- footstep planner (animatronic style) ----
+ // Each paw is planted at a fixed world spot for its whole stance, then lifts, travels along an arc
+ // to the next planned footprint (under where its hip will be at mid-stance) and plants again.
+ const slope=(ground(0,8)-ground(0,-8))/16;
+ RAW.l=Math.atan(slope)/R*TER.lean;p.lean+=SPR.init?SPR.l:RAW.l;
+ const turnAmt=Math.min(1,Math.abs(OMEGA)/1.2);
+ p.lift=Math.max(p.lift,90*turnAmt);p.armLift=Math.max(p.armLift,20*turnAmt);
+ p.lean+=SKIDLEAN;
+ const swayA=p.sway*R*Math.sin(th)-OMEGA*Math.min(1,cur.travel*TRAVK/150)*0.18;   // bank into the turn
+ const D=perCycle(),plan=[];
+ // shared footstep maths: where a planted limb sits, and its arc between footholds
+ let FOOT_R=3.2;
+ const stepTarget=(rx,rz,U,liftAmt)=>planFootstep(rx,rz,U,liftAmt,FOOT_R,D,p.seek);
+ // planted hands (all fours): one plan per visible arm
+ const armPlan=[];
+ if(p.armPlant>0.01){let ai=0;
+  for(const [sy,k] of SERGAL_SHAPE.arms.pairs.map(pr=>[pr.y,pr.key]))for(const side of [1,-1]){if(ai++>=SHOW.nArms)continue;
+   const ps=k==="l"?(p.pairSync||0):0,g=n=>{const a=p[k+n],u=p["u"+n];return a+(u-a)*ps};
+   const U=ph+g("Phase")+(side>0?0.5*(1-g("Sync")):0);
+   const sh=add(rotZ(rotX([side*SERGAL_SHAPE.arms.shoulderX,sy,0],p.lean*R),swayA),[0,(p.shoulderBob||0)*-Math.cos(2*Math.PI*U),0]);   // shoulder relative to the pelvis
+   FOOT_R=4;armPlan.push({k,side,sy,sh,...stepTarget(sh[0]+side*4,sh[2]+p.armReach,U,p.armLift)})}}
+ for(const L of LEGS){
+  const sx=L.k.slice(2),rot=p["rot"+sx]*R,y=L.yaw*R,o=[Math.sin(y),0,Math.cos(y)],sp=Math.tan(p.splay*R);
+  // side hips ride up through the planted half of their step and dip while the leg swings
+  const A={...ATT[L.k]};if(!L.tail)A.y+=(p.hipBob||0)*-Math.cos(2*Math.PI*(ph+p[L.k]));
+  const off={th:p["th"+sx],kn:p["kn"+sx],hk:p["hk"+sx],dir:Math.cos(rot)};
+  const rel=(sw,a,lt)=>legChain(p,lt,{...off,th:off.th+sw+a*0.5,kn:off.kn+a,hk:off.hk+a*0.8}).map(q=>add(rotY(q,rot),mul(o,-q[1]*sp)));
+  const relStill=(sw,a)=>legChain({...p,stride:0,lift:0},0,{...off,th:off.th+sw+a*0.5,kn:off.kn+a,hk:off.hk+a*0.8}).map(q=>add(rotY(q,rot),mul(o,-q[1]*sp)));
+  const rest=relStill(0,0)[2],rx=A.x+rest[0],rz=A.z+rest[2];
+  const U=ph+p[L.k],n=Math.floor(U),u=U-n;
+  FOOT_R=3.2;const st0=stepTarget(rx,rz,U,p.lift*0.3),tgt=st0.tgt,gp=st0.gp,stance=st0.stance;
+  plan.push({L,sx,rot,o,A,off,rel,relStill,tgt,gp,stance,lt:th+2*Math.PI*p[L.k]});
+ }
+ // body rides over the paws: between their average ground height and the lowest one
+ let gb=0;
+ if(TER.feet){const gs=plan.map(q=>ground(q.tgt[0],q.tgt[2]));gb=0.5*gs.reduce((a,b)=>a+b,0)/gs.length+0.5*Math.min(...gs)}
+ else{gb=ground(0,0)}
+ // crouch when a planted paw would be out of reach, instead of the leg snapping straight
+ let lim=Infinity;
+ if(TER.feet||armPlan.length){const reach=(L1+L2+L3)*0.97,lims=[];
+  if(TER.feet)for(const q of plan){const dx=q.gp[0]-q.A.x,dz=q.gp[2]-q.A.z,d2=dx*dx+dz*dz;
+   const up=d2<reach*reach?Math.sqrt(reach*reach-d2):0;lims.push(q.gp[1]+up-q.A.y-H)}
+  // the body also lowers until planted hands can reach the ground (fades out as Hands on the ground -> 0)
+  const AL=1+(p.armLen-1)*p.armPlant,ar=31*AL*0.95;for(const a of armPlan){const dx=a.gp[0]-a.sh[0],dz=a.gp[2]-a.sh[2],d2=dx*dx+dz*dz;
+   const up=d2<ar*ar?Math.sqrt(ar*ar-d2):0;lims.push(a.gp[1]+up-a.sh[1]-H+(1-p.armPlant)*300)}
+  lim=softMinAll(lims)}
+
+ RAW.y=lim<Infinity?smin(gb,lim):gb;
+ if(SPR.init)gb=SPR.y;
+ // reach limit acts like a soft floor on how high the body may ride: smooth-min keeps it jolt-free
+ if(!SPR.init)gb=RAW.y;
+ // never ride higher than the paws can reach, even while the spring catches up
+ if(lim<Infinity)gb=smin(gb,lim+3,5);
+ {let fl=-1e9;
+  for(let t=0;t<=1.001;t+=0.25){const o=rotZ(rotX([0,SERGAL_SHAPE.torso.len*t,2],p.lean*R),swayA),r=15+(12.5-15)*t+1.5;
+   fl=Math.max(fl,ground(o[0],o[2])+r-o[1]-H)}
+  fl=Math.max(fl,ground(0,0)+H*0.58-H);     // hips never fold lower than ~60% of standing height
+  gb=smaxFloor(gb,fl)}
+ const P0=[0,H+gb+BOB,0];   // whole-body bounce rides on top of the ground/reach limits
+ const B=v=>add(P0,rotZ(rotX(v,p.lean*R),swayA));
+ // legs
+ for(const q of plan){
+  const {L,o}=q;
+  G++;const hip=add(P0,[q.A.x,q.A.y,q.A.z]);
+  let pts;
+  if(TER.feet){
+   // 2-joint solve: thigh swing (sw) + leg fold (a) so the paw reaches its planned target
+   const f=rotY([0,0,1],q.rot),T=sub3(q.tgt,hip);
+   const err=(sw,a)=>{const c=q.relStill(sw,a)[2],d=sub3(c,T);return[d[0]*f[0]+d[2]*f[2],d[1]]};
+   const x=solveLegIK(err,L.ik);
+   L.ik=x;pts=q.relStill(x[0],x[1]).map(v=>add(hip,v));
+   // toe rests on the ground while planted
+   const d=sub3(pts[3],pts[2]);
+   if(q.stance)pts[3]=[pts[3][0],Math.max(pts[2][1]+d[1],ground(pts[3][0],pts[3][2])+3.4),pts[3][2]];
+   else pts[3]=[pts[3][0],Math.max(pts[3][1],ground(pts[3][0],pts[3][2])+3.4),pts[3][2]];
+  }else pts=q.rel(0,0,q.lt).map(v=>add(hip,v));
+  const col=showColors?L.c:C.fur;
+  tube(hip,pts[0],8,5.5,col);tube(pts[0],pts[1],5.5,3.6,col);tube(pts[1],pts[2],3.6,3.2,col);tube(pts[2],pts[3],4,3.4,C.furD);
+  prims.push({t:2,a:[pts[2][0],ground(pts[2][0],pts[2][2]+4)+0.1,pts[2][2]+4],r:9});
+ }
+ // torso
+ G++;
+ {const T=SERGAL_SHAPE.torso;tube(B([0,0,-1]),B([0,T.len,0]),T.rBase,T.rTop,C.fur);tube(B(T.belly.from),B(T.belly.to),T.belly.r0,T.belly.r1,C.belly,1)}
+ // arms (upper pair y38, lower pair y27)
+ let armI=0;
+ const SA=SERGAL_SHAPE.arms;
+ SA.pairs.map(pr=>[pr.y,pr.offset]).forEach(([sy,off])=>{
+  [1,-1].forEach(side=>{
+   if(armI++>=SHOW.nArms)return;
+   G++;
+   const sh=B([side*SA.shoulderX,sy,0]);
+   {const ps0=off?(p.pairSync||0):0,kk=off?"l":"u",gg=n=>{const a=p[kk+n],u=p["u"+n];return a+(u-a)*ps0};
+    sh[1]+=(p.shoulderBob||0)*-Math.cos(2*Math.PI*(ph+gg("Phase")+(side>0?0.5*(1-gg("Sync")):0)))}
+   // each pair has its own settings; pairSync blends the lower pair toward the upper pair's values
+   const k=off?"l":"u",ps=off?(p.pairSync||0):0;
+   const g=n=>{const a=p[k+n],u=p["u"+n];return a+(u-a)*ps};
+   const t2=th+2*Math.PI*g("Phase");
+   const alt=Math.sin(t2+(side>0?Math.PI:0)),tog=Math.sin(t2);
+   const wave=alt+(tog-alt)*g("Sync");
+   const sw=g("Swing")*R*wave,raise=g("Raise")*R;
+   const elb=(g("Elbow")+g("ElbowSwing")*(0.5+0.5*wave))*R;
+   let ud=rotX(rotZ([0,-1,0],side*raise),-sw);
+   const AS=1+((p.armLen||1)-1)*(p.armPlant||0);
+   const el=add(sh,mul(ud,SA.upper*AS));
+   const fd=rotX(rotZ([0,-1,0],side*raise),-sw-elb);
+   let ha=add(el,mul(fd,SA.lower*AS)),elF=el;
+   const ap=armPlan.find(a=>a.k===k&&a.side===side);
+   if(ap){// two-bone reach: elbow bends backward like a quadruped's foreleg
+    const l1=SA.upper*AS,l2=SA.lower*AS,v=sub3(ap.tgt,sh),dl=Math.hypot(...v),u=mul(v,1/(dl||1)),d=Math.max(2,Math.min((l1+l2)*0.995,dl));
+    const ca=Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*d))),sa=Math.sqrt(1-ca*ca);
+    let bk=sub3([0,0,-1],mul(u,-u[2]));const bl=Math.hypot(...bk);bk=bl<1e-3?[0,1,0]:mul(bk,1/bl);
+    const el2=add(sh,add(mul(u,l1*ca),mul(bk,l1*sa))),ha2=add(sh,mul(u,d)),w=p.armPlant;
+    elF=add(mul(el,1-w),mul(el2,w));ha=add(mul(ha,1-w),mul(ha2,w));
+    if(w>0.5)prims.push({t:2,a:[ha[0],ground(ha[0],ha[2])+0.1,ha[2]],r:5})}
+   tube(sh,elF,5,4,C.fur);tube(elF,ha,4,3.2,C.fur);dot(ha,4,C.furD);
+  });
+ });
+ // necks + heads
+ (SHOW.nHeads===1?[0]:[1,-1].slice(0,SHOW.nHeads)).forEach((side,i)=>{
+  G++;const SN=SERGAL_SHAPE.necks,base=B([side*SN.x,SN.y,0]);
+  const nd=rotZ([0,1,0.15],-side*p.neck*R);
+  let top=add(base,mul(nd,SN.len));
+  // head steadying (like a bird or a dog): the head floats on a slow spring and the neck
+  // stretches/compresses to absorb the body's bounce, within the neck's flexibility
+  HRAW[i]=top[1];
+  if(HS[i]&&HS[i].init){const c=Math.max(-10,Math.min(10,(HS[i].y-top[1])*TER.steady));top=[top[0],top[1]+c,top[2]]}
+  tube(base,top,6.5,5.5,C.fur);
+  const bob=p.headBob*Math.sin(2*th+i*Math.PI);
+  const hy=side*(p.headTurn*R*(0.6+0.4*Math.sin(th*0.5+i)));
+  const H0=add(top,[0,bob*0.4,0]);
+  const hp=v=>add(H0,rotY(rotX(v,-bob*0.03+(p.headDroop||0)*R),hy));
+  tube(hp([0,3,-5]),hp([0,1,21]),8.5,1.6,C.fur);       // wedge skull + snout
+  tube(hp([0,-1,-2]),hp([0,-2.5,12]),5.5,1.5,C.belly,.5); // pale jaw
+  [1,-1].forEach(es=>{
+   tube(hp([es*3,7,-5]),hp([es*4.5,22,-9]),3.2,0.6,C.fur,-.3);
+   tube(hp([es*3,8,-4.3]),hp([es*4.3,19,-7.6]),1.6,0.4,C.ear,-.2);
+   dot(hp([es*4.6,5,5]),1.7,C.ink);{const e=prims[prims.length-1],q=hp([es*5.6,5,5.6]);e.n=[q[0]-e.a[0],q[1]-e.a[1],q[2]-e.a[2]]}
+  });
+ });
+ // lion tails
+ (SHOW.nTails===1?[0]:[1,-1].slice(0,SHOW.nTails)).forEach((side,i)=>{
+  G++;const ST=SERGAL_SHAPE.tails;let pt=add(P0,rotZ([side*ST.root[0],ST.root[1],ST.root[2]],swayA));
+  for(let k=0;k<ST.segs;k++){
+   const e=(p.tailLift-25+k*p.tailCurl)*R;
+   const s=(side*10+p.tailSwing*Math.sin(th-k*0.55+i*0.9))*R;
+   const d=[Math.sin(s)*Math.cos(e),Math.sin(e),-Math.cos(s)*Math.cos(e)];
+   const np=add(pt,mul(d,ST.segLen));tube(pt,np,3.6-k*0.2,3.4-k*0.2,C.fur);pt=np;
+  }
+  dot(pt,ST.tuft,C.tuft);
+ });
+ // everything above was built facing his own forward; turn it to face his heading in the world
+ faceHeading();
+}
+
+
+// =====================================================================
+// ---------- character 2: the robot ----------
+// An upright body (box <-> cylinder) with a cluster of 3 dog-style limbs at each end.
+// Bottom end: Back / Left / Right legs. Top end: Neck (its paw acts as the head) and two arms.
+// Any limb that isn't standing becomes a tail/arm/neck; on all six the body tips forward and
+// the top limbs plant like front legs. Flip somersaults him so the two ends swap.
+// =====================================================================
+let BODY_L=100,BODY_R=13;
+// where on the limb touches the ground: 0 = paw (normal), 0.5 = hock, 1 = knee. ch = [knee, hock, paw, toe]
+function contactPt(ch,u){if(u<=0.5){const t=u/0.5;return add(mul(ch[2],1-t),mul(ch[1],t))}const t=(u-0.5)/0.5;return add(mul(ch[1],1-t),mul(ch[0],t))}
+const belowContact=u=>L3*Math.min(u,0.5)/0.5+L2*Math.max(0,u-0.5)/0.5;
+const RLIMBS=[
+ {n:"Back",end:"B",v:[0,0,-8],k:"phB0",c:"#b5452f",role:"tail",rot:180},
+ {n:"Left",end:"B",v:[10,0,3],k:"phB1",c:"#3f6f8f",role:"leg"},
+ {n:"Right",end:"B",v:[-10,0,3],k:"phB2",c:"#5d7f3a",role:"leg"},
+ // top-end limbs are turned 180: planted, that end runs as if going backwards (mirror of the bottom end)
+ {n:"Neck",end:"T",v:[0,BODY_L,-8],k:"phT0",c:"#8a5a9a",role:"neck",rot:0},   // turned 180 from its two neighbours, like the back leg is from its own
+ {n:"L arm",end:"T",v:[10,BODY_L,3],k:"phT1",c:"#b08a2e",role:"arm",side:1,rot:180},
+ {n:"R arm",end:"T",v:[-10,BODY_L,3],k:"phT2",c:"#2e8a8a",role:"arm",side:-1,rot:180}];
+const META_R=[
+ ["Timing",[["speed","Cycles per second",0,4,0.05],["travel","Ground speed",0,300,1],
+   ["phB0","Back leg phase",0,1,0.01],["phB1","Left leg phase",0,1,0.01],["phB2","Right leg phase",0,1,0.01],
+   ["phT0","Neck phase (when planted)",0,1,0.01],["phT1","Left arm phase (when planted)",0,1,0.01],["phT2","Right arm phase (when planted)",0,1,0.01]]],
+ ["Legs",[["lift","Paw lift (deg)",0,100,1],["thigh","Thigh angle (deg)",-30,70,1],["knee","Knee bend (deg)",0,130,1],["hock","Hock bend (deg)",0,130,1],["splay","Stool splay (deg)",0,35,1],["seek","Foothold search on terrain",0,40,1]]],
+ ["Body",[["bob","Bounce",0,15,0.1],["bobMul","Bounces per cycle",1,4,1],["sway","Side sway (deg)",0,15,0.5],["lean","Forward lean (deg)",-10,100,1],["spineFlex","Spine flex with each stride (needs 2-3 body segments)",0,45,1],["spineBend","Spine held bent (+ sag / - arch)",-40,40,1]]],
+ ["Top limbs",[["topPlant","Top limbs on the ground (0 = arms & neck, 1 = front legs)",0,1,0.05],["armRaise","Arms raised (0 hang, 90 = T-pose, 180 = up)",0,180,1],["armSwing","Arm swing (deg)",0,70,1],["armBend","Arm bend (deg)",0,120,1],["neckTilt","Neck lean forward (deg)",-30,80,1],["headBob","Head nod",0,15,0.5]]],
+ ["Middle limbs as tails",[["tailUse","Back leg lifted as a tail (0-1)",0,1,0.05],["frontTail","Front middle limb lifted as a tail (0-1)",0,1,0.05],["frontHead","Front middle limb lifted as a neck & head, looking forward (0-1)",0,1,0.05],["tailCurve","Back middle limb as a curved kangaroo tail (0 off / 1 on)",0,1,1],["tailReach","Kangaroo tail plants this far behind (grows with tail length)",10,90,1],["footUp","Kangaroo tail: ground contact up the tail (0 paw, 0.5 hock, 1 knee)",0,1,0.05],["tailLift","Tail lift (deg)",-30,90,1],["tailSwing","Tail swish (deg)",0,60,1]]]];
+const RBASE={footUp:0,frontHead:0,tailCurve:0,tailReach:45,spineFlex:0,spineBend:0,frontTail:0,speed:.35,travel:0,phB0:0,phB1:.33,phB2:.67,phT0:.5,phT1:.58,phT2:.66,stride:0,lift:0,thigh:18,knee:55,hock:45,splay:14,seek:0,
+ bob:1,bobMul:1,sway:1,lean:0,topPlant:0,armRaise:20,armSwing:4,armBend:25,neckTilt:15,headBob:1.5,tailUse:0,tailLift:20,tailSwing:10};
+const DOG6={phB0:0,phB1:.08,phB2:.16,phT0:.5,phT1:.58,phT2:.66},INSECT6={phB0:0,phB1:.5,phB2:0,phT0:.5,phT1:0,phT2:.5};
+const DEF_R={
+ idle:{...RBASE},
+ tpose:{...RBASE,armRaise:90,armBend:0,armSwing:0,headBob:0.5},
+ walk:{...RBASE,speed:.9,travel:62,lift:32,thigh:20,bob:2.5,bobMul:3,sway:3,lean:5,armSwing:18,armRaise:15,armBend:30,headBob:3},
+ walk2:{...RBASE,speed:1,travel:58,phB1:0,phB2:.5,lift:34,thigh:22,bob:2.5,bobMul:2,sway:5,lean:6,armSwing:22,armRaise:25,armBend:35,headBob:3,tailUse:1,tailLift:35,tailSwing:24},
+ run:{...RBASE,speed:1.8,travel:175,phB1:.5,phB2:.5,lift:55,thigh:28,knee:62,hock:52,splay:10,seek:20,bob:6,bobMul:2,sway:2,lean:16,armSwing:34,armRaise:28,armBend:70,headBob:6},
+ runTail:{...RBASE,speed:1.8,travel:175,phB1:0,phB2:.5,lift:55,thigh:28,knee:62,hock:52,splay:8,seek:20,bob:6,bobMul:2,sway:3,lean:24,armSwing:34,armRaise:26,armBend:70,headBob:5,tailUse:1,tailLift:22,tailSwing:16},
+ // dinosaur: body pitched well forward, tail held out level behind as a counterweight, little arms tucked, neck reaching forward
+ dino:{...RBASE,speed:1.3,travel:115,phB1:0,phB2:.5,lift:45,thigh:26,knee:60,hock:50,splay:6,seek:10,bob:4,bobMul:2,sway:3,lean:52,armRaise:6,armSwing:8,armBend:85,neckTilt:70,headBob:5,tailUse:1,tailLift:52,tailSwing:12},
+ // kangaroo: both legs hop together; the (lengthenable) middle leg plants half a beat later like a pogo/tail
+ roo:{...RBASE,tailCurve:1,tailReach:48,speed:1.4,travel:150,phB0:.5,phB1:0,phB2:0,lift:60,thigh:30,knee:70,hock:60,splay:6,seek:15,bob:12,bobMul:1,sway:0,lean:30,armRaise:12,armSwing:6,armBend:75,neckTilt:30,headBob:3,tailUse:0},
+ get run5b(){return{...this.run6,tailUse:1,frontTail:0,tailLift:30,tailSwing:20}},
+ get run5f(){return{...this.run6,tailUse:0,frontTail:1,tailLift:30,tailSwing:20}},
+ // dog-style: front middle limb raised as a neck, head held level and looking ahead
+ get run4dog(){return{...this.run6,tailUse:1,frontHead:1,neckTilt:-45,headBob:2,tailLift:30,tailSwing:20}},
+ get run5head(){return{...this.run6,frontHead:1,neckTilt:-45,headBob:2}},
+ get run4(){return{...this.run6,tailUse:1,frontTail:1,tailLift:30,tailSwing:20,bob:6}},
+ run6:{...RBASE,...DOG6,spineFlex:18,speed:2.2,travel:190,lift:45,thigh:28,knee:62,hock:52,splay:10,seek:20,bob:5,bobMul:1,sway:1,lean:90,topPlant:1,armRaise:10,armSwing:10,armBend:30,neckTilt:0,headBob:2}};
+const MODES_R=[["idle","Idle (upright)"],["tpose","T-pose"],["walk","Walk on three"],["walk2","Walk on two (tail up)"],["run","Run (upright)"],["runTail","Run upright, tail up"],["dino","Dinosaur"],["roo","Kangaroo hop"],["run4dog","Run on four like a dog (head up)"],["run4","Run on four (both tails up)"],["run5b","Run on five (back tail up)"],["run5f","Run on five (front tail up)"],["run5head","Run on five (head up)"],["run6","Run on all six"]];
+const PR=JSON.parse(JSON.stringify(DEF_R)),PS=P;
+// creature skins: the robot dresses up as a sergal, dinosaur or kangaroo (same rig, different shapes/colours)
+const SKINPAL={
+ sergal:{fur:"#d6b483",dark:"#b8925e",belly:"#f3e2bf",pawB:"#8a3b2a",eye:"#3a2a1c",inner:"#e9b9a0",tuft:"#7a4a22"},
+ dino:{fur:"#6f9a4a",dark:"#4c6e30",belly:"#d9d2a0",pawB:"#7a3a2a",eye:"#1f2a14",inner:"#c94",tuft:null},
+ roo:{fur:"#b9804f",dark:"#8e5c35",belly:"#ead2b0",pawB:"#6a3520",eye:"#2a1a10",inner:"#e7b9a2",tuft:null}};
+function segBounds(N){if(N===3){const m=BODY_L/3*RLOOK.midLen,e=(BODY_L-m)/2;return[0,e,e+m,BODY_L]}
+ const b=[];for(let i=0;i<=N;i++)b.push(BODY_L*i/N);return b}
+const RLOOK={midLen:1,midSeg:1,head:true,segs:1,mid:1,skin:"robot",morph:0.35,body:"#e8b923",limb:"#d9a514",joint:"#2d2a26",pawA:"#2d2a26",pawB:"#c4462f"};
+// FLIP.kind: "ends" (somersault so the two ends swap), "up" (flip up onto the ceiling), "down" (drop back off it)
+let FLIP=null,SWAP=false,GECKO=false,ROBFEET=[],LASTMID=[0,0,0],LASTHIPS=[],SEGDBG=null,BONEBAD=0,BONETOL=0,BONESHOW=false;let CEIL=215;const ceilFor=()=>175+BODY_L*1.2;CEIL=ceilFor();
+const flipT=()=>FLIP?(phase-FLIP.p0)/FLIP.len:-1;
+function startFlip(kind){if(FLIP||CHAR!=="robot")return;if(!playing&&!STEPBLEND)$("play").onclick();
+ FLIP={kind,p0:phase,len:Math.max(0.15,(kind==="ends"?0.9:kind==="rise"?1.0:1.1)*effSpeed())};
+ // ceiling: the top (front) end reaches up and grabs, so the ends trade jobs. Going up they swap on landing;
+ // coming down they swap at the start, so the move can run as "up" played backwards
+ if(kind==="down")SWAP=!SWAP}
+// which end he stands up on when leaving "Run on all six": "A" or "B"
+let STANDEND="keep",LYTURN="swap";const LYING=new Set(["run6","run5b","run5f","run4","run4dog","run5head"]);
+const bottomEnd=()=>SWAP?"B":"A";
+
+// --- character switching ---
+// ---------- character registry ----------
+// Everything that makes a character a character, in one place. The editor and the main loop only talk
+// to CHARACTERS[CHAR]; adding a character means adding an entry here (step 1 of the roadmap).
+const CHARACTERS={
+ sergal:{name:"Sergal",shape:SERGAL_SHAPE,attach:ATT,limbs:LEGS,sliders:META,defaults:DEF,params:PS,modes:MODES_S,build:(p,ph)=>buildRig(p,ph),
+  similar:{idle:"idle",tpose:"idle",walk:"walk",walk2:"walk",run:"run",runTail:"run",dino:"run",roo:"run",run6:"gallop",run5b:"gallop",run5f:"gallop",run4:"gallop",run4dog:"gallop",run5head:"gallop"},
+  panels:{show:["sergalParts","attach","moodRow","emoodRow"],hide:["robotLook","tF","tC"]}},
+ robot:{name:"Robot",shape:{get body(){return{len:BODY_L,radius:BODY_R}},look:RLOOK,skins:SKINPAL},limbs:RLIMBS,sliders:META_R,defaults:DEF_R,params:PR,modes:MODES_R,build:(p,ph)=>buildRobot(p,ph),
+  similar:{idle:"idle",walk:"walk",run:"run",gallop:"run6"},
+  panels:{show:["robotLook","tF","tC"],hide:["sergalParts","attach","moodRow","emoodRow"]}}};
+const charDef=()=>CHARACTERS[CHAR];
+$("charSel").innerHTML=Object.entries(CHARACTERS).map(([k,c])=>`<option value="${k}">${c.name}</option>`).join("");
+$("charSel").onchange=()=>{CHAR=$("charSel").value;const D=charDef();
+ P=D.params;METAC=D.sliders;DEFC=D.defaults;MODES=D.modes;fillModeMenus();
+ // keep doing the same kind of thing when switching characters
+ const nm=D.similar[mode]||"idle";mode=editMode=nm;BLENDFROM=null;from={...P[nm]};cur={...P[nm]};blendU=1;SPR.init=false;
+ for(const L of [...LEGS,...RLIMBS])L.ik=null;
+ for(const id of D.panels.show)$(id).hidden=false;for(const id of D.panels.hide)$(id).hidden=true;FLIP=null;
+ segUI();buildSliders();applyCollapsed();syncJSON()};
+// body length moves the top cluster of limbs with the end of the body
+$("rLen").oninput=()=>{BODY_L=+$("rLen").value;$("rLenV").textContent=BODY_L;for(const L of RLIMBS)if(L.end==="T")L.v[1]=BODY_L;CEIL=ceilFor()};
+$("rRad").oninput=()=>{BODY_R=+$("rRad").value;$("rRadV").textContent=BODY_R};
+document.querySelectorAll("#lyingTurn button").forEach(b=>b.onclick=()=>{LYTURN=b.dataset.t;document.querySelectorAll("#lyingTurn button").forEach(x=>x.classList.toggle("on",x===b))});
+document.querySelectorAll("#standEnd button").forEach(b=>b.onclick=()=>{STANDEND=b.dataset.e;document.querySelectorAll("#standEnd button").forEach(x=>x.classList.toggle("on",x===b))});
+const tintEnds=()=>{$("standEnd").children[2].style.borderBottom="6px solid "+RLOOK.pawA;$("standEnd").children[3].style.borderBottom="6px solid "+RLOOK.pawB};tintEnds();
+["cPawA","cPawB"].forEach(id=>$(id).addEventListener("input",tintEnds));
+$("rSkin").onchange=()=>{RLOOK.skin=$("rSkin").value};
+document.querySelectorAll("#rHead button").forEach(b=>b.onclick=()=>{RLOOK.head=b.dataset.h==="1";document.querySelectorAll("#rHead button").forEach(x=>x.classList.toggle("on",x===b))});
+$("rSeg").oninput=()=>{RLOOK.segs=+$("rSeg").value;$("rSegV").textContent=RLOOK.segs;$("midSegRow").hidden=RLOOK.segs!==3};
+$("rMidLen").oninput=()=>{RLOOK.midLen=+$("rMidLen").value;$("rMidLenV").textContent=RLOOK.midLen};
+$("rMidSeg").oninput=()=>{RLOOK.midSeg=+$("rMidSeg").value;$("rMidSegV").textContent=RLOOK.midSeg};
+$("rMid").oninput=()=>{RLOOK.mid=+$("rMid").value;$("rMidV").textContent=RLOOK.mid};
+$("rMorph").oninput=()=>{RLOOK.morph=+$("rMorph").value;$("rMorphV").textContent=$("rMorph").value};
+[["cBody","body"],["cLimb","limb"],["cJoint","joint"],["cPawA","pawA"],["cPawB","pawB"]].forEach(([id,k])=>$(id).oninput=()=>{RLOOK[k]=$(id).value});
+document.querySelectorAll("#gaitStyle button").forEach(b=>b.onclick=()=>{
+ Object.assign(P[editMode],b.dataset.g==="dog"?DOG6:INSECT6);
+ document.querySelectorAll("#gaitStyle button").forEach(x=>x.classList.toggle("on",x===b));buildSliders();syncJSON();
+ say((b.dataset.g==="dog"?"Dog":"Spider / insect")+" timing applied to "+editMode+".")});
+// Walkover: from standing, drop forward onto all six, then rise over the front end and carry on
+// standing on the other end (never goes back to the original legs)
+let WALKOVER=null;
+// staged, and driven by the blend/flip progress (not the clock), so it also works frame by frame while paused
+const goMode=m=>{const sel=$("modeSel");sel.value=m;sel.onchange()};
+$("tF").onclick=()=>{if(WALKOVER||FLIP||CHAR!=="robot")return;if(!playing&&!STEPBLEND)$("play").onclick();
+ WALKOVER={stage:1,back:mode==="run6"?"run":mode,saved:STANDEND};
+ if(mode!=="run6")goMode("run6")};
+function walkoverStep(){if(!WALKOVER)return;
+ if(WALKOVER.stage===1&&blendU>=0.999){STANDEND="front";goMode(WALKOVER.back);STANDEND=WALKOVER.saved;WALKOVER.stage=2;return}
+ if(WALKOVER.stage===2&&!FLIP&&blendU>=0.999)WALKOVER=null}
+$("tC").onclick=()=>startFlip(GECKO?"down":"up");
+function flipStep(){if(!FLIP)return;const t=flipT();
+ if(t<0){if(FLIP.kind==="down")SWAP=!SWAP;FLIP=null;return}   // scrubbed back past the start: cancel
+ if(t>=1){if(FLIP.kind==="ends"||FLIP.kind==="rise")SWAP=!SWAP;else{GECKO=FLIP.kind==="up";if(GECKO)SWAP=!SWAP}FLIP=null;$("tC").textContent=GECKO?"Drop":"Ceiling"}}
+
+// --- shading helpers for boxy faces ---
+const hexRGB=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+function shade(h,f){const [r,g,b]=hexRGB(h);return`rgb(${Math.min(255,r*f)|0},${Math.min(255,g*f)|0},${Math.min(255,b*f)|0})`}
+const norm3=v=>{const l=Math.hypot(...v)||1;return[v[0]/l,v[1]/l,v[2]/l]};
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+// a box/cylinder segment from a to b: superellipse cross-section (square -> circle by RLOOK.morph)
+function prism(a,b,r,col,ref,sides){
+ const u=norm3(sub3(b,a));let v=cross3(u,ref);if(Math.hypot(...v)<1e-3)v=cross3(u,[1,0,0]);v=norm3(v);const w=cross3(v,u);
+ const N=sides||12,pe=2/(2+(1-RLOOK.morph)*14),ring=[];
+ for(let k=0;k<N;k++){const an=Math.PI/4+2*Math.PI*k/N,c=Math.cos(an),s=Math.sin(an);
+  ring.push([Math.sign(c)*Math.abs(c)**pe,Math.sign(s)*Math.abs(s)**pe])}
+ const P1=ring.map(([x,y])=>add(a,add(mul(v,x*r),mul(w,y*r)))),P2=ring.map(([x,y])=>add(b,add(mul(v,x*r),mul(w,y*r))));
+ const mid=mul(add(a,b),0.5);
+ for(let k=0;k<N;k++){const k1=(k+1)%N,q=[P1[k],P1[k1],P2[k1],P2[k]],c=mul(add(add(q[0],q[1]),add(q[2],q[3])),0.25);
+  let n=norm3(cross3(sub3(q[1],q[0]),sub3(q[3],q[0])));if(dot3(n,sub3(c,mid))<0)n=mul(n,-1);
+  prims.push({t:5,pts:q,a:c,b:c,fn:n,col,bias:0,g:G})}
+ prims.push({t:5,pts:P1.slice().reverse(),a:a,b:a,fn:mul(u,-1),col,bias:0,g:G});
+ prims.push({t:5,pts:P2,a:b,b:b,fn:u,col,bias:0,g:G})}
+
+// --- the robot's rig, built with the same planner, springs, terrain and turning as the sergal ---
+function buildRobot(p,ph){
+ prims=[];G=0;const th=2*Math.PI*ph;
+ const turnAmt=Math.min(1,Math.abs(OMEGA)/1.2);p.lift=Math.max(p.lift,90*turnAmt);p.lean+=SKIDLEAN;
+ const ft0=flipT(),flipping=FLIP&&ft0>=0&&ft0<1,ft=flipping?ft0:0,ends=flipping&&(FLIP.kind==="ends"||FLIP.kind==="rise"),
+  tuck=flipping&&FLIP.kind==="ends"?Math.sin(Math.PI*ft):0;
+ // hanging from the ceiling: gravity pulls the body down, so the planted legs hang nearly straight instead of crouching
+ const upE=flipping&&!ends?(()=>{const s=FLIP.kind==="up"?ft:1-ft;return s*s*(3-2*s)})():0,hang=flipping&&!ends?upE*(1-tuck):(GECKO&&!FLIP?1:0);
+ const calm=1-tuck;   // swings and sways fade out mid-flip so the tucked pose is the same both sides
+ const H=restHeight(p),BOB=p.bob*(p.bobWave*0.5+0.5);
+ const slope=(ground(0,8)-ground(0,-8))/16;RAW.l=Math.atan(slope)/R*TER.lean;p.lean+=SPR.init?SPR.l:RAW.l;
+ const swayA=calm*p.sway*R*Math.sin(th)-OMEGA*Math.min(1,cur.travel*TRAVK/150)*0.18;
+ const bodyDir=v=>rotZ(rotX(v,p.lean*R),swayA);
+ // segmented spine: each joint between body segments flexes with the stride (arch up / sag down),
+ // carrying the segments beyond it - and the top-end limbs - with it
+ const NS=RLOOK.segs,flexA=((p.spineBend||0)+(p.spineFlex||0)*Math.sin(th))*R,accTop=NS>1?(NS-1)*flexA:0;
+ const bend=v=>{if(NS<2||!flexA)return v;const SB=segBounds(NS);let pos=[0,0,0],acc=-accTop/2;   // centred, so both ends dip/rise together
+  for(let j=0;j<NS;j++){const y0=SB[j],sl=SB[j+1]-y0;if(v[1]<=y0+sl||j===NS-1)return add(pos,rotX([v[0],v[1]-y0,v[2]],acc));pos=add(pos,rotX([0,sl,0],acc));acc+=flexA}return v};
+ const bodyDirT=v=>bodyDir(rotX(v,accTop/2)),bodyDirB=v=>bodyDir(rotX(v,-accTop/2));
+ const D=perCycle();
+ const step=(rx,rz,U,liftAmt,FR)=>planFootstep(rx,rz,U,liftAmt,FR,D,p.seek);
+ // how planted each limb is (1 = standing on it)
+ const plantW=L=>{let w=L.end==="B"?(L.role==="tail"?1-p.tailUse:1):(L.role==="neck"?p.topPlant*(1-Math.min(1,(p.frontTail||0)+(p.frontHead||0))):p.topPlant);return w*(1-tuck)};
+ const off0={th:0,kn:0,hk:0,dir:1};
+ const relStill=(sw,a,rot=0,sc=1)=>legChain({...p,stride:0,lift:0},0,{...off0,th:sw+a*0.5,kn:a,hk:a*0.8}).map(v=>mul(rot?rotY(v,rot*R):v,sc));
+ const LSC=L=>(L.role==="tail"||L.role==="neck")?RLOOK.mid:1;   // middle limb of each end: adjustable length
+ const plan=RLIMBS.map(L=>{const ao=bodyDir(bend(L.v)),w=plantW(L),o={L,ao,w};
+  if(w>0.01){const sp=Math.tan(p.splay*R),out=norm3([L.v[0],0,L.v[2]||0.001]);
+   const rest=splayV(relStill(0,0,L.rot||0,LSC(L))[2],out,sp);let rx=ao[0]+rest[0],rz=ao[2]+rest[2];
+   // kangaroo tail: plants well behind the body and drags/pushes like a sprung prop
+   if(L.role==="tail"&&p.tailCurve>0.5){rx=ao[0];rz=ao[2]-p.tailReach*LSC(L);o.curve=true}   // a longer tail plants further back
+   Object.assign(o,step(rx,rz,ph+p[L.k],p.lift*0.3*LSC(L),3.2),{out,sp,sc:LSC(L)})}
+  return o});
+ // body height: average/lowest planted ground, crouch to keep planted paws reachable, keep body off the ground
+ const pl=plan.filter(q=>q.w>0.01);let gb=0;
+ if(pl.length){const gs=pl.map(q=>ground(q.tgt[0],q.tgt[2]));gb=0.5*gs.reduce((a,b)=>a+b,0)/gs.length+0.5*Math.min(...gs)}
+ let lim=Infinity;
+  if(pl.length){const lims=pl.map(q=>{const reach=(L1+L2+L3)*0.97*(q.sc||1)*(q.curve?1.6:1),dx=q.gp[0]-q.ao[0],dz=q.gp[2]-q.ao[2],d2=dx*dx+dz*dz;
+   const up=d2<reach*reach?Math.sqrt(reach*reach-d2):0;return q.gp[1]+up-q.ao[1]-H+(1-q.w)*300});
+  lim=softMinAll(lims)}
+ RAW.y=lim<Infinity?smin(gb,lim):gb;if(SPR.init)gb=SPR.y;else gb=RAW.y;
+ if(lim<Infinity)gb=smin(gb,lim+3,5);
+ if(hang>0&&lim<Infinity)gb+=hang*Math.max(0,Math.min(40,lim-1.5-gb));
+ {let fl=-1e9;for(let t=0;t<=1.001;t+=0.25){const o=bodyDir(bend([0,BODY_L*t,0]));fl=Math.max(fl,ground(o[0],o[2])+BODY_R+1.5-o[1]-H)}
+  gb=smaxFloor(gb,fl)}
+ const P0=[0,H+gb+BOB,0],B=v=>add(P0,bodyDir(bend(v))),fwd=bodyDir([0,0,1]);
+ // body
+ G++;{const N=RLOOK.segs,gap=N>1?4:0,SB=segBounds(N);
+  for(let i=0;i<N;i++){const y0=(i?SB[i]+gap/2:-2),y1=(i<N-1?SB[i+1]-gap/2:BODY_L+2);
+   const SP=SKINPAL[RLOOK.skin];
+   // with 3 segments the middle one (torso/waist) can be slimmer
+   const BRs=BODY_R*(N===3&&i===1?RLOOK.midSeg:1);
+   if(SP){tube(B([0,y0+3,-1]),B([0,y1-3,0]),BRs+1,BRs,SP.fur);tube(B([0,y0+5,BRs*0.45]),B([0,y1-5,BRs*0.5]),BRs*0.58,BRs*0.52,SP.belly,1);
+    // dinosaur: a row of back plates
+    if(RLOOK.skin==="dino")for(let y=y0+6;y<y1-3;y+=9){const b0=B([0,y,-BODY_R*0.85]),tip=B([0,y+2,-BODY_R-7]);tube(b0,tip,3.4,0.6,SP.dark,-.5)}}
+   else prism(B([0,y0,0]),B([0,y1,0]),BRs,RLOOK.body,fwd,16);
+   if(i<N-1)dot(B([0,y1+gap/2,0]),BODY_R*0.72,SP?SP.dark:RLOOK.joint)}}
+ // limbs
+ const LS=[[6.5,5.5],[5.5,4.5],[4.5,4],[4.2,3.6]];
+ const endCol=L=>((L.end==="B")!==SWAP)?RLOOK.pawA:RLOOK.pawB;
+ const chains=[];
+ for(const q of plan){const L=q.L;
+  const hip=add(P0,q.ao);let ptsP=null,ptsR;
+  if(q.w>0.01){const T=sub3(q.tgt,hip);
+   // the two-angle solver only works in the leg's own plane, so the hip also turns (yaw) to aim that
+   // plane at the paw's target: without it a paw that has to stay put while the body turns would slide sideways
+   let roll=0;const foot=(sw,a)=>{const c=relStill(sw,a,L.rot||0,q.sc)[2];return rotZ(splayV(c,q.out,q.sp),roll)};
+   let yaw=0,x=L.ik;
+   for(let it=0;it<5;it++){x=solveLegIK((sw,a)=>{const d=sub3(foot(sw,a),rotY(T,-yaw));return[d[2],d[1]]},x);
+    // turn the leg's plane (which sits x0 to the side of the hip) so it passes through the target; smallest turn wins
+    const x0=foot(x[0],x[1])[0],R=Math.hypot(T[0],T[2]);if(R<1)break;
+    const ph=Math.atan2(T[2],T[0]),ac=Math.acos(Math.max(-1,Math.min(1,x0/R))),w=a=>Math.atan2(Math.sin(a),Math.cos(a)),y1=w(ac-ph),y2=w(-ac-ph);
+    const ny=Math.max(-1.2,Math.min(1.2,Math.abs(y1)<Math.abs(y2)?y1:y2));
+    // target closer in than the leg's sideways offset: tilt the leg in at the hip as well
+    const c=foot(x[0],x[1]),Ty=rotY(T,-ny);if(c[1]<-5)roll=Math.max(-0.6,Math.min(0.6,roll+(Ty[0]-c[0])/(-c[1])));
+    yaw=ny}
+   L.ik=x;L.yaw=yaw;ptsP=relStill(x[0],x[1],L.rot||0,q.sc).map(v=>add(hip,rotY(rotZ(splayV(v,q.out,q.sp),roll),yaw)));
+   if(q.stance){// toe stays above the ground by tipping up, not by stretching
+    const d=sub3(ptsP[3],ptsP[2]),l=Math.hypot(...d),gy=ground(ptsP[3][0],ptsP[3][2])+3.4-ptsP[2][1];
+    if(d[1]<gy&&l>1e-6){const ny=Math.max(-l,Math.min(l,gy)),hl=Math.hypot(d[0],d[2]),nh=Math.sqrt(Math.max(0,l*l-ny*ny));ptsP[3]=add(ptsP[2],hl>1e-6?[d[0]/hl*nh,ny,d[2]/hl*nh]:[0,ny,0])}}}
+  // raised pose: arm / neck-with-head / tail, built in the body's frame
+  {let d1,d2,d3;const sw=Math.sin(th);
+   if(L.role==="arm"){const sd=L.side,ang=p.armRaise*R*(1-tuck)+tuck*2.6,swing=calm*p.armSwing*R*sw*sd;
+    d1=bodyDirT(rotX(rotZ([0,-1,0],sd*ang),-swing));d2=bodyDirT(rotX(rotZ([0,-1,0],sd*ang),-swing-(p.armBend+60*tuck)*R));d3=bodyDirT(rotX(rotZ([0,-1,0],sd*ang),-swing-(p.armBend*0.3+90*tuck)*R))}
+   else if(L.role==="neck"){const nod=p.headBob*Math.sin(2*th)*R,t1=(p.neckTilt*0.4+40*tuck)*R,t2=(p.neckTilt+70*tuck)*R;
+    d1=rotX([0,1,0],t1);d2=rotX([0,1,0],t1-25*R);d3=rotX([0,1,0],t2+75*R+nod);
+    // front middle limb as a tail: the back tail's shape mirrored onto the top end, swishing half a beat later
+    const ft=p.frontTail||0;
+    if(ft>0){const wag=calm*p.tailSwing*R*Math.sin(th+Math.PI),lift=p.tailLift*R,m=v=>[-v[0],-v[1],v[2]];
+     const e1=m(rotY(rotX(norm3([0,-0.5,-1]),-lift),wag)),e2=m(rotY(rotX(norm3([0,0,-1]),-lift*1.3),wag*1.5)),e3=m(rotY(rotX(norm3([0,0.4,-1]),-lift*1.5),wag*2));
+     d1=norm3(add(mul(d1,1-ft),mul(e1,ft)));d2=norm3(add(mul(d2,1-ft),mul(e2,ft)));d3=norm3(add(mul(d3,1-ft),mul(e3,ft)))}
+    d1=bodyDirT(d1);d2=bodyDirT(d2);d3=bodyDirT(d3);
+    if(ft<0.5&&tuck<0.01){const lv=[0,Math.sin(nod),Math.cos(nod)],w=1-ft*2;d3=norm3(add(mul(d3,1-w),mul(lv,w)))}}   // head level, eyes forward
+   else{const isT=L.role==="tail",sd=isT?0:(L.v[0]>0?1:-1),wag=isT?calm*p.tailSwing*R*Math.sin(th):0,lift=(isT?p.tailLift:-60)*R;
+    d1=bodyDirB(rotY(rotX(norm3([sd*0.4,-0.5,-1]),-lift-60*tuck*R),wag));d2=bodyDirB(rotY(rotX(norm3([sd*0.3,0,-1]),-lift*1.3-80*tuck*R),wag*1.5));d3=bodyDirB(rotY(rotX(norm3([0,0.4,-1]),-lift*1.5-90*tuck*R),wag*2))}
+   const sc=LSC(L),k1=add(hip,mul(d1,L1*sc)),h1=add(k1,mul(d2,L2*sc)),f1=add(h1,mul(d3,L3*sc)),t1=add(f1,mul(d3,9*sc));ptsR=[k1,h1,f1,t1]}
+  let pts=ptsP?blendBones(hip,ptsR,ptsP,q.w):ptsR;   // bone by bone, so a part-planted limb never shrinks
+  if(q.curve){
+   // the tail is the limb's own knee / hock / paw / toe laid along one path. "Ground contact up the tail"
+   // picks which part touches down: the stretch before it sweeps down from the hips, the rest trails behind and curls up
+   const sc=q.sc||1,cum=[0,L1,L1+L2,L1+L2+L3,L1+L2+L3+9].map(v=>v*sc),u=p.footUp||0;
+   const dc=u<=0.5?cum[3]+(cum[2]-cum[3])*u/0.5:cum[2]+(cum[1]-cum[2])*(u-0.5)/0.5,rest=cum[4]-dc;
+   const contact=q.w>0.01?add(mul(ptsR[2],1-q.w),mul(q.tgt,q.w)):ptsR[2],back=Math.max(10,hip[2]-contact[2]);
+   const tip=add(contact,[0,6+rest*0.35,-(8+rest*0.75)]);
+   const bez=(a,b,c,d,t)=>{const v=1-t;return add(add(mul(a,v*v*v),mul(b,3*v*v*t)),add(mul(c,3*v*t*t),mul(d,t*t*t)))};
+   const c1=add(hip,[0,-(hip[1]-contact[1])*0.75,0]),c2=add(contact,[0,0,back*0.6]),c3=add(contact,[0,0,-rest*0.4]),c4=add(tip,[0,-rest*0.25,rest*0.15]);
+   const along=d=>d<=dc?bez(hip,c1,c2,contact,d/dc):bez(contact,c3,c4,tip,(d-dc)/Math.max(1e-3,rest));
+   pts=[along(cum[1]),along(cum[2]),along(cum[3]),along(cum[4])];q.cpt=contact}
+  {const R0=[hip,...ptsR];chains.push({L,q,chain:[hip,...pts],restL:R0.slice(1).map((v,j)=>Math.hypot(...sub3(v,R0[j])))})}
+ }
+ const cMid=add(P0,bodyDir(bend([0,BODY_L/2,0])));LASTMID=cMid;LASTHIPS=plan.filter(q=>q.w>0.5).map(q=>q.ao);
+ if(ends){
+  // each limb eases into the pose its opposite-end partner has, turned upside down, so that after the
+  // half turn every limb is exactly where its partner stood: no snap when the ends swap roles
+  // rise = a plain forward pitch (no twist): partners are matched left-to-left, and each hip glides
+  // along the body to where its partner's hip will be, so nothing snaps when the ends trade jobs
+  const rise=FLIP.kind==="rise",e=ft*ft*(3-2*ft),M=v=>add(cMid,(rise?rotX:rotZ)(sub3(v,cMid),Math.PI)),src=chains.map(c=>c.chain.map(v=>[...v])),PM=rise?[3,4,5,0,1,2]:[3,5,4,0,2,1];
+  const rl=chains.map(c=>c.restL.slice());chains.forEach((c,i)=>{const pc=src[PM[i]].map(M);{const r0=add(mul(c.chain[0],1-e),mul(pc[0],e));c.chain=[r0,...blendBones(r0,c.chain.slice(1),pc.slice(1),e,c.chain[0],pc[0])]}if(chains[PM[i]].q.curve)c.flex=true;c.restL=rl[i].map((l,j)=>l*(1-e)+rl[PM[i]][j]*e)})}
+ ROBFEET=chains.map(c=>({w:c.q.w,p:rotY(c.chain[3],HEAD)}));
+ if(flipping&&!ends){
+  // (the whole robot is then lifted so the middle ends up where the hanging pose has it)
+  // top end grabs the ceiling: each limb moves to where its partner at the other end will be once he hangs
+  // (that partner's pose, mirrored top-to-bottom). Blended segment by segment, keeping bone lengths
+  const s=FLIP.kind==="up"?ft:1-ft,e=s*s*(3-2*s),PM=[3,4,5,0,1,2],src=chains.map(c=>c.chain.map(v=>[...v]));
+  chains.forEach((c,i)=>{const pc=src[PM[i]].map(v=>[v[0],2*cMid[1]-v[1],v[2]]),own=src[i];
+   const out=[add(mul(own[0],1-e),mul(pc[0],e))];
+   for(let j=1;j<own.length;j++){const a=sub3(own[j],own[j-1]),b=sub3(pc[j],pc[j-1]),la=Math.hypot(...a),lb=Math.hypot(...b);
+    let d=add(mul(a,(1-e)/(la||1)),mul(b,e/(lb||1)));const ld=Math.hypot(...d);d=ld>1e-6?mul(d,1/ld):norm3(a);
+    out.push(add(out[j-1],mul(d,la*(1-e)+lb*e)))}
+   c.chain=out;if(chains[PM[i]].q.curve)c.flex=true})
+  {const rl=chains.map(c=>c.restL.slice());chains.forEach((c,i)=>c.restL=rl[i].map((l,j)=>l*(1-e)+rl[PM[i]][j]*e))}}
+ // bone rule: no bone may stretch or shrink past the allowed amount (the kangaroo's curled tail is exempt)
+ BONEBAD=0;
+ for(const c of chains){c.bad=[];if(c.q.curve||c.flex)continue;
+  for(let j=1;j<c.chain.length;j++){const r=c.restL[j-1],d=sub3(c.chain[j],c.chain[j-1]),l=Math.hypot(...d);
+   const lo=r*(1-BONETOL),hi=r*(1+BONETOL);
+   if(l<lo-1e-6||l>hi+1e-6){BONEBAD++;c.bad.push(j);const nl=Math.max(lo,Math.min(hi,l)),dir=l>1e-6?mul(d,1/l):[0,-1,0],np=add(c.chain[j-1],mul(dir,nl)),sh=sub3(np,c.chain[j]);
+    for(let k=j;k<c.chain.length;k++)c.chain[k]=add(c.chain[k],sh)}}}
+ // floor guard: a lifted or tucked limb (not standing on its paw) must not dip into the ground. If any joint ball or
+ // the paw would, swing the whole limb up at the hip until it clears: a turn, so no bone changes length.
+ if(!GECKO&&!FLIP)for(const c of chains){if(c.q.w>=0.99)continue;const ch=c.chain,hip=ch[0];   // fully planted paws are left alone
+  const rad=j=>j>=ch.length-2?2.9:(LS[j-1]?LS[j-1][1]+0.6:4);   // paw: a planted paw sits at 3.2
+  const pen=pts=>{let worst=0,at=-1;for(let j=1;j<pts.length;j++){const d=ground(pts[j][0],pts[j][2])+rad(j)+0.5-pts[j][1];if(d>worst){worst=d;at=j}}return[worst,at]};
+  let [d,at]=pen(ch);if(d<=0)continue;
+  const v=sub3(ch[at],hip);let ax=cross3(v,[0,1,0]);const al=Math.hypot(...ax);if(al<1e-6)continue;ax=mul(ax,1/al);
+  const rot=(p,a)=>{const w=sub3(p,hip),c2=Math.cos(a),s2=Math.sin(a);return add(hip,add(add(mul(w,c2),mul(cross3(ax,w),s2)),mul(ax,dot3(ax,w)*(1-c2))))};
+  let best=null;for(let k=1;k<=45;k++){const a=k*2*Math.PI/180,np=ch.map((p,j)=>j?rot(p,a):p);if(pen(np)[0]<=0){best=np;break}}
+  if(best)for(let j=1;j<ch.length;j++)ch[j]=best[j]}
+ SEGDBG=chains.map(c=>c.q.curve||c.flex?[]:c.chain.slice(1).map((v,j)=>Math.hypot(...sub3(v,c.chain[j]))/c.restL[j]));
+ for(const {L,q,chain} of chains){G++;
+  const lc=showColors?L.c:RLOOK.limb,pts=chain.slice(1);
+
+  const SP=SKINPAL[RLOOK.skin];
+  if(SP){
+   // creature skins: soft capsules, a head on the lifted neck (or a paw if you prefer), a tail on the lifted back leg
+   const fc=showColors?L.c:SP.fur,lifted=q.w<0.5,isTail=L.role==="tail"&&lifted;
+   const thick=isTail&&RLOOK.skin!=="sergal"?[3.5,2.5,1.5]:[1,0.5,0];   // dino/kangaroo tails are chunky
+   for(let i=0;i<3;i++)tube(chain[i],chain[i+1],LS[i][0]+1+thick[i],LS[i][1]+0.5+(thick[i+1]||0),fc);
+   const asHead=L.role==="neck"&&lifted&&RLOOK.head;
+   if(asHead){const fw=[0,0,1],H0=pts[2];   // in his own frame: always looking the way he's facing
+    const side=norm3(cross3([0,1,0],fw)),hp=v=>add(H0,add(add(mul(side,v[0]),[0,v[1],0]),mul(fw,v[2])));
+    const eye=(x,y,z)=>{dot(hp([x,y,z]),1.7,SP.eye);const e=prims[prims.length-1],q2=hp([x*1.25,y,z+0.6]);e.n=sub3(q2,e.a)};
+    if(RLOOK.skin==="sergal"){
+     tube(hp([0,3,-5]),hp([0,1,21]),8.5,1.6,SP.fur);tube(hp([0,-1,-2]),hp([0,-2.5,12]),5.5,1.5,SP.belly,.5);
+     [1,-1].forEach(es=>{tube(hp([es*3,7,-5]),hp([es*4.5,22,-9]),3.2,0.6,SP.fur,-.3);tube(hp([es*3,8,-4.3]),hp([es*4.3,19,-7.6]),1.6,0.4,SP.inner,-.2);eye(es*4.6,5,5)})}
+    else if(RLOOK.skin==="dino"){
+     // blocky long skull, open-able jaw line, brow ridges
+     tube(hp([0,4,-6]),hp([0,3,20]),8,5,SP.fur);tube(hp([0,-2,-3]),hp([0,-1.5,18]),5.5,3.8,SP.belly,.5);
+     [1,-1].forEach(es=>{tube(hp([es*4,8,0]),hp([es*4.2,8.5,6]),2.6,1.8,SP.dark,-.2);eye(es*5.6,6,4);dot(hp([es*2.2,4,20]),0.9,SP.eye)})}
+    else{
+     // kangaroo: rounded head, short snout, tall upright ears
+     tube(hp([0,3,-4]),hp([0,2,8]),7.5,5.5,SP.fur);tube(hp([0,0,6]),hp([0,-0.5,15]),4.6,3,SP.fur);dot(hp([0,1,15.5]),2,SP.eye);
+     [1,-1].forEach(es=>{tube(hp([es*3,8,-3]),hp([es*5.5,25,-6]),3.4,1.4,SP.fur,-.3);tube(hp([es*3,9,-2.4]),hp([es*5.2,22,-5.2]),1.8,0.6,SP.inner,-.2);eye(es*5,5,4)})}}
+   else tube(pts[2],pts[3],4.4+(isTail?thick[2]:0),3.8,endCol(L)===RLOOK.pawB?SP.pawB:SP.dark);
+   if(isTail&&SP.tuft)dot(pts[3],7,SP.tuft)}
+  else{
+  for(let i=0;i<3;i++){prism(chain[i],chain[i+1],LS[i][0],lc,fwd,10);dot(chain[i+1],LS[i][1]+0.6,RLOOK.joint)}
+  prism(pts[2],pts[3],L.role==="neck"&&q.w<0.5?5.5:4.2,endCol(L),fwd,10);}
+  if(q.w>0.5&&!GECKO){const cp=q.cpt||pts[2];prims.push({t:2,a:[cp[0],ground(cp[0],cp[2])+0.1,cp[2]],r:8})}
+ }
+ // bone check (debug): mark any bone that had to be pulled back to its allowed length
+ if(BONESHOW)for(const c of chains)for(const j of c.bad){G++;dot(c.chain[j-1],2.6,"#e0201a");dot(c.chain[j],2.6,"#e0201a")}
+ // somersault: whole robot pitches end over end around its middle and hops up
+ const xf=(T,N)=>{for(const q of prims){const same=q.b===q.a;q.a=T(q.a);if(q.b)q.b=same?q.a:T(q.b);if(q.pts)q.pts=q.pts.map(T);if(q.fn)q.fn=N(q.fn);if(q.n)q.n=N(q.n)}};
+ const mir=v=>[v[0],CEIL-v[1],v[2]];   // ceiling world: upside-down mirror of the floor pose
+ if(ends){const ang=Math.PI*ft*ft*(3-2*ft),lift=[0,(FLIP.kind==="rise"?0:50)*Math.sin(Math.PI*ft),0];
+  // somersault with a half twist: end over end and turned round, so he lands facing the same way
+  const tw=FLIP.kind==="rise"?0:ang;
+  xf(v=>add(add(cMid,rotY(rotX(sub3(v,cMid),ang),tw)),lift),n=>rotY(rotX(n,ang),tw));
+  if(FLIP.kind==="rise"){// tipping over onto the front end: keep his lowest paw on the ground the whole way
+   let lo=1e9;for(const q of prims){if(q.t===2)continue;for(const v of (q.pts||[q.a]))lo=Math.min(lo,v[1])}
+   const dy=-(lo-3.2)*Math.sin(Math.PI*ft);xf(v=>[v[0],v[1]+dy,v[2]],n=>n);for(const q of prims)if(q.t===2)q.a=[q.a[0],0.1,q.a[2]]}}
+ else if(flipping){// grabbing the ceiling: the body itself just rises (limbs were blended above)
+  const s=FLIP.kind==="up"?ft:1-ft,e=s*s*(3-2*s),sh=mul(sub3(mir(cMid),cMid),e);
+  xf(v=>add(v,sh),n=>n)}
+ else if(GECKO)xf(mir,n=>[n[0],-n[1],n[2]]);
+ faceHeading();
+}
+const LIGHT=norm3([0.4,0.8,0.5]);
+
+// ---------- render ----------
+const cv=$("cv"),ctx=cv.getContext("2d");
+let W,Hh,DPR;
+function resize(){DPR=devicePixelRatio||1;W=cv.clientWidth;Hh=cv.clientHeight;cv.width=W*DPR;cv.height=Hh*DPR}
+addEventListener("resize",resize);resize();
+// ---------- reset button on every slider row: back to the default for that slider ----------
+(function(){
+ const dec=row=>{if(row.querySelector(".rs"))return;const r=row.querySelector('input[type=range]');if(!r)return;
+  const def=row.dataset.def!==undefined&&row.dataset.def!==""?+row.dataset.def:+r.getAttribute("value");if(!isFinite(def))return;
+  const lab=row.querySelector("label");if(lab)lab.style.gridColumn="1/2";
+  const b=document.createElement("button");b.className="rs";b.type="button";b.textContent="\u21BA";b.title="Reset to default ("+def+")";b.setAttribute("aria-label","Reset to default");
+  const mark=()=>row.classList.toggle("changed",Math.abs(+r.value-def)>1e-9);
+  b.onclick=()=>{r.value=def;r.dispatchEvent(new Event("input",{bubbles:true}));r.dispatchEvent(new Event("change",{bubbles:true}));mark()};
+  r.addEventListener("input",mark);row.insertBefore(b,r);mark()};
+ const all=()=>document.querySelectorAll(".sl").forEach(dec);all();
+ new MutationObserver(all).observe(document.body,{childList:true,subtree:true})})();
+// ---------- interface: Auto (mouse/trackpad -> Desktop, finger -> Touch), or forced by the switch ----------
+(function(){const fine=matchMedia("(pointer:fine)"),root=document.documentElement;let pick="auto",first=true;
+ try{const v=localStorage.getItem("mixmoUI");if(v==="touch"||v==="desk")pick=v}catch(e){}
+ const apply=()=>{const desk=pick==="desk"||(pick==="auto"&&fine.matches),side=desk&&innerWidth>=760;
+  const ch=root.classList.contains("desk")!==desk||root.classList.contains("side")!==side;
+  root.classList.toggle("desk",desk);root.classList.toggle("side",side);
+  document.querySelectorAll("#uiSw button").forEach(b=>b.classList.toggle("on",b.dataset.ui===pick));
+  $("uiSw").querySelector('[data-ui="auto"]').title="Auto: detected "+(fine.matches?"mouse/trackpad (Desktop)":"touch (Touch)");
+  $("hint").textContent=desk?"drag: orbit - wheel: zoom - right-drag / Shift+drag: pan - double-click: reset":"1 finger: orbit - 2 fingers: pan & zoom - double-tap: reset";
+  if((ch||first)&&window.applySplit)applySplit();else resize();first=false};
+ document.querySelectorAll("#uiSw button").forEach(b=>b.onclick=()=>{pick=b.dataset.ui;try{localStorage.setItem("mixmoUI",pick)}catch(e){}apply()});
+ (fine.addEventListener?fine.addEventListener("change",apply):fine.addListener(apply));addEventListener("resize",apply);
+ window.UIMODE=()=>({pick,desk:root.classList.contains("desk"),side:root.classList.contains("side")});apply()})();
+function proj(v){
+ const robo=CHAR==="robot";let q=rotX(rotY([v[0],v[1]-(robo?CAMY:68),v[2]],yaw),pitch);
+ const s=zoom*Math.min(W,Hh*1.1)/(robo?260+BODY_L*1.4:245)*(600/(600-q[2]));
+ return{x:W/2+panX+q[0]*s,y:Hh*0.5+panY-q[1]*s,z:q[2],s};
+}
+let CAMY=95;
+function drawGround(){
+ ctx.strokeStyle="rgba(58,42,28,.18)";ctx.lineWidth=1;
+ if(CHAR==="robot"){const t=flipT(),up=FLIP&&(FLIP.kind==="up"||FLIP.kind==="down")&&t>=0?(FLIP.kind==="up"?t:1-t):(GECKO?1:0),e=up*up*(3-2*up);
+  const base=70+BODY_L*0.6;CAMY=base+(CEIL-2*base)*e;
+  if(up>0){ctx.save();ctx.strokeStyle="rgba(58,42,28,"+(0.25*e+0.05)+")";
+   const gx=Math.round(POS[0]/30)*30,gz=Math.round(POS[1]/30)*30;
+   for(let i=-5;i<=5;i++){for(const [a,b] of [[[gx+i*30,gz-150],[gx+i*30,gz+150]],[[gx-150,gz+i*30],[gx+150,gz+i*30]]]){
+    const A=proj([a[0]-POS[0],CEIL,a[1]-POS[1]]),B2=proj([b[0]-POS[0],CEIL,b[1]-POS[1]]);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B2.x,B2.y);ctx.stroke()}}
+   ctx.restore()}}
+ const gx=Math.round(POS[0]/30)*30,gz=Math.round(POS[1]/30)*30;
+ const line=(f)=>{ctx.beginPath();for(let k=0;k<=30;k++){const [X,Z]=f(k/30),q=proj([X-POS[0],groundW(X,Z),Z-POS[1]]);k?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)}ctx.stroke()};
+ for(let i=-5;i<=5;i++){
+  line(t=>[gx+i*30,gz-150+300*t]);
+  line(t=>[gx-150+300*t,gz+i*30]);
+ }
+}
+function drawTube(p){
+ if(p.t===5){ctx.beginPath();p.pts.forEach((v,i)=>{const q=proj(v);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)});ctx.closePath();
+  ctx.fillStyle=shade(p.col,0.62+0.5*Math.max(0,dot3(p.fn,LIGHT)));ctx.fill();ctx.lineWidth=1;ctx.strokeStyle=C.ink;ctx.stroke();return}
+ const A=proj(p.a),Bp=proj(p.b),ra=p.ra*A.s,rb=p.ra===undefined?0:(p.t===1?ra:p.rb*Bp.s);
+ ctx.beginPath();
+ if(p.t===1)ctx.arc(A.x,A.y,ra,0,7);
+ else{
+  const ang=Math.atan2(Bp.y-A.y,Bp.x-A.x),n=ang+Math.PI/2;
+  ctx.moveTo(A.x+Math.cos(n)*ra,A.y+Math.sin(n)*ra);
+  ctx.lineTo(Bp.x+Math.cos(n)*rb,Bp.y+Math.sin(n)*rb);
+  ctx.arc(Bp.x,Bp.y,rb,n,n-Math.PI,true);
+  ctx.lineTo(A.x-Math.cos(n)*ra,A.y-Math.sin(n)*ra);
+  ctx.arc(A.x,A.y,ra,n-Math.PI,n-2*Math.PI,true);
+ }
+ ctx.closePath();
+ ctx.lineWidth=2.2;ctx.strokeStyle=C.ink;ctx.stroke();ctx.fillStyle=p.col;ctx.fill();
+}
+const rankG={},rankP={};
+function render(){
+ ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,Hh);
+ drawGround();
+ for(const s of prims.filter(q=>q.t===2)){const c=proj(s.a);ctx.fillStyle="rgba(58,42,28,.15)";ctx.beginPath();ctx.ellipse(c.x,c.y,s.r*c.s,s.r*c.s*0.4,0,0,7);ctx.fill()}
+ const list=[];prims.forEach((q,i)=>{if(q.t===2)return;
+  if(q.t===5){const f=proj(add(q.a,q.fn)).z-proj(q.a).z;if(f<=0.02)return;list.push({q,i,z:proj(q.a).z});return}
+  if(q.n){const f=proj(add(q.a,q.n)).z-proj(q.a).z;if(f<=0.05)return; // eye on far side: hidden
+   list.push({q,i,eye:1,z:1e6});return}
+  const m=add(q.a,q.b);list.push({q,i,z:proj(mul(m,.5)).z+q.bias})});
+ // group parts by limb so limbs draw as whole pieces; hysteresis keeps
+ // near-equal depths in last frame's order instead of swapping every frame
+ const gz={};for(const o of list){(gz[o.q.g]||(gz[o.q.g]={s:0,n:0,max:-1e9,items:[]}));const g=gz[o.q.g];if(!o.eye){g.s+=o.z;g.n++}g.items.push(o)}
+ const groups=Object.keys(gz).map(k=>({k,z:gz[k].s/(gz[k].n||1),items:gz[k].items}));
+ groups.sort((a,b)=>Math.abs(a.z-b.z)<4?(rankG[a.k]??0)-(rankG[b.k]??0):a.z-b.z);
+ groups.forEach((g,r)=>rankG[g.k]=r);
+ for(const g of groups){
+  g.items.sort((a,b)=>Math.abs(a.z-b.z)<1.5?(rankP[a.i]??a.i)-(rankP[b.i]??b.i):a.z-b.z);
+  g.items.forEach((o,r)=>rankP[o.i]=r);
+  for(const o of g.items)drawTube(o.q);
+ }
+}
+function drawGait(){drawGaitOn($("gait"),22);const m=document.querySelector(".gaitMini");if(m&&m.offsetParent)drawGaitOn(m,11)}
+function drawGaitOn(g,rh){
+ const c=g.getContext("2d"),d=devicePixelRatio||1,w=g.clientWidth;
+ const LL=charDef().limbs,gap=rh>15?4:2;g.style.height=(LL.length*(rh+gap)+6)+"px";const h=g.clientHeight;
+ g.width=w*d;g.height=h*d;c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,w,h);
+ const lx=rh>15?82:62,rw=w-lx-4;
+ LL.forEach((L,i)=>{
+  const y=3+i*(rh+gap);c.fillStyle=C.ink;c.font=(rh>15?13:10)+"px Georgia";c.fillText(L.n,0,y+rh*0.75);
+  c.fillStyle="#efe0bf";c.fillRect(lx,y,rw,rh);
+  c.fillStyle=showColors?L.c:"#6b4e33";
+  for(let x=0;x<rw;x++){const th=2*Math.PI*(x/rw+cur[L.k]);if(Math.cos(th)<=0)c.fillRect(lx+x,y,1,rh)}
+  c.strokeStyle=C.ink;c.strokeRect(lx+.5,y+.5,rw-1,rh-1);
+ });
+ const px=lx+frac(phase)*rw;c.strokeStyle=C.accent||"#8a3b2a";c.strokeStyle="#8a3b2a";c.lineWidth=2;c.beginPath();c.moveTo(px,0);c.lineTo(px,h);c.stroke();
+}
+
+// ---------- turning ----------
+// Turns are morphs on their own timeline, tied to the cycle phase like the flips, so they play, step
+// and scrub forwards AND backwards. 90/180: ease round to the new heading. 180 while running: skid to a
+// stop leaning back, whip round, then speed off. Spin: a full turn on the spot.
+// While turning he steps a bit quicker (BOOST) so his paws keep up with his body.
+let TURNM=null;
+const smt=u=>u*u*(3-2*u);
+// Spin is a loop, not a morph: while it's on he keeps turning on the spot, one full turn per SPIN.len cycles.
+let SPIN=null;const SPINSTEP=45;   // how far (around the circle) each paw may be carried per stride while spinning
+function toggleSpin(){if(SPIN){SPIN=null;HEAD_T=HEAD;OMEGA=0;TRAVK=1;BOOST=0;$("tS").classList.remove("on");return}
+ const ts=Math.max(cur.speed,2.2),pz=CHAR==="robot"?LASTMID[2]:0;
+ const rmax=CHAR==="robot"?Math.max(15,...LASTHIPS.map(a=>Math.hypot(a[0],a[2]-pz)+25)):15;
+ SPIN={p0:phase,h0:HEAD,len:Math.max(1.1*ts,2*Math.PI*rmax/SPINSTEP),ts,pz,W:[POS[0]+Math.sin(HEAD)*pz,POS[1]+Math.cos(HEAD)*pz]};$("tS").classList.add("on");turnStep()}
+function startTurn(kind){
+ if(kind==="S"){toggleSpin();return}
+ if(TURNM)return;
+ if(SPIN)toggleSpin();   // a 90/180 turn stops the spin first
+ const lying=CHAR==="robot"&&LYING.has(mode),bodyK=Math.max(0.6,Math.min(2.2,BODY_L/100));   // body length 100 = normal
+ if(kind==="U"&&lying&&LYTURN==="swap"){   // lying flat the body works from either end: swap which end leads, don't spin round
+  const ts=Math.max(cur.speed,2.2);TURNM={kind:"U6",label:"Turn around 180° (swap ends)",skidSw:cur.travel>100,p0:phase,len:1.1*Math.sqrt(bodyK)*ts,h0:HEAD,dh:0,skid:false,ts,d0:DIR};turnStep();return}   // let the current turn finish
+ const fast=cur.travel>100,moving=cur.travel>=40,ts=Math.max(cur.speed,moving?1.2:2.2);
+ let dh=0,dur=0.8,skid=false;
+ if(kind==="L"){dh=Math.PI/2;dur=moving?0.9:0.8}
+ else if(kind==="R"){dh=-Math.PI/2;dur=moving?0.9:0.8}
+ else if(kind==="U"&&lying){dh=Math.PI;dur=1.8*bodyK}   // turn round lying flat: slower, and slower still for a long body
+ else if(kind==="U"){dh=Math.PI;if(fast){skid=true;dur=1.7}else dur=1.1}
+ else{dh=2*Math.PI;dur=1.1}
+ TURNM={kind,label:{L:"Turn left 90°",R:"Turn right 90°",U:"Turn around 180°",S:"Spin"}[kind],p0:phase,len:dur*ts,h0:HEAD,dh,skid,ts};
+ HEAD_T=HEAD+dh;turnStep()}
+function turnShape(T,t){   // -> [heading fraction, travel factor, lean back, sub-state]
+ if(T.skid){const lean=-26*Math.sin(Math.PI*Math.min(1,t/0.55));
+  if(t<0.35)return[0,1-smt(t/0.35),lean,"skidding"];
+  if(t<0.65)return[smt((t-0.35)/0.3),0,lean,"whipping round"];
+  const k=(t-0.65)/0.35;return[1,k*k,lean,"speeding off"]}
+ if(T.kind==="S")return[smt(t),1-Math.sin(Math.PI*t),0,"spinning"];
+ if(T.kind==="U6"){const lean=T.skidSw?-26*Math.sin(Math.PI*Math.min(1,t/0.55)):0;return[0,1,lean,t<0.5?(T.skidSw?"skidding":"slowing"):"other end leading"]}
+ return[smt(t),1,0,""]}
+function turnStep(){
+ if(!TURNM&&SPIN){const t=(phase-SPIN.p0)/SPIN.len;HEAD=SPIN.h0+2*Math.PI*t;HEAD_T=HEAD;TRAVK=0;BOOST=SPIN.ts;
+  // pivot round the middle of the body, not the hips: the middle stays put in the world
+  POS[0]=SPIN.W[0]-Math.sin(HEAD)*SPIN.pz;POS[1]=SPIN.W[1]-Math.cos(HEAD)*SPIN.pz;
+  OMEGA=2*Math.PI/(SPIN.len/SPIN.ts);TURN={st:null,t:0};return}
+ if(!TURNM){if(!LYING.has(mode)&&DIR!==1&&blendU>=1)DIR=1;BOOST=0;TURN={st:null,t:0};return}
+ const T=TURNM,t=(phase-T.p0)/T.len;
+ const end=h=>{HEAD=h;HEAD_T=h;TRAVK=1;SKIDLEAN=0;OMEGA=0;BOOST=0;TURNM=null;TURN={st:null,t:0}};
+ if(T.kind==="U6"){if(t<0){DIR=T.d0;end(T.h0);return}if(t>=1){DIR=-T.d0;end(T.h0);return}
+  DIR=T.d0*Math.cos(Math.PI*smt(t));HEAD=HEAD_T=T.h0;TRAVK=1;OMEGA=0;BOOST=T.ts;const sh=turnShape(T,t);SKIDLEAN=sh[2];TURN={st:sh[3],t};return}
+ if(t<0){end(T.h0);return}            // stepped back past the start: cancelled
+ if(t>=1){end(T.h0+T.dh);return}      // finished
+ const [h,tr,lean,st]=turnShape(T,t),h2=turnShape(T,Math.min(1,t+0.01))[0];
+ HEAD=T.h0+T.dh*h;HEAD_T=T.h0+T.dh;TRAVK=tr;SKIDLEAN=lean;BOOST=T.ts;
+ OMEGA=T.dh*(h2-h)/0.01/(T.len/T.ts);   // turn rate, used for banking and lifting paws
+ TURN={st:st||"turn",t}}
+["L","R","U","S"].forEach(k=>$("t"+k).onclick=()=>{if(!playing&&!STEPBLEND)$("play").onclick();startTurn(k)});
+
+// ---------- loop ----------
+let last=performance.now();
+function frame(t){
+ const dt=Math.min(.05,(t-last)/1000);last=t;
+ const bt=+$("blend").value;
+ // 'Frame' blend mode: while paused, the switch only moves when you step/scrub (see advance)
+ if(playing||!STEPBLEND)blendU=bt<=0?1:Math.min(1,blendU+dt/bt);
+ const u=ease(blendU),tg=P[mode];
+ for(const k in tg)cur[k]=from[k]+(tg[k]-from[k])*u;
+ // blend bounce waves, not the multiplier (lerping a frequency jitters)
+ const th0=2*Math.PI*phase,fb=Math.sin(th0*Math.round(from.bobMul));
+ cur.bobWave=fb+(Math.sin(th0*Math.round(tg.bobMul))-fb)*u;
+ springStep(dt);
+ turnStep();
+ if(typeof walkoverStep==="function")walkoverStep();
+ if(playing)advance(dt*effSpeed());
+ showFrame();
+ flipStep();
+ charDef().build(cur,phase);render();drawGait();showStatus();
+ requestAnimationFrame(frame);
+}
+segUI();buildSliders();applyCollapsed();syncJSON();requestAnimationFrame(frame);
+// ---------- desktop: mouse wheel over a closed dropdown steps through its choices ----------
+(function(){let acc=0,lastT=0;
+ document.addEventListener("wheel",e=>{const s=e.target.closest&&e.target.closest("select");if(!s||s.disabled)return;
+  e.preventDefault();const now=performance.now();if(now-lastT>300)acc=0;lastT=now;
+  acc+=e.deltaMode===1?e.deltaY*33:e.deltaY;           // lines -> pixels; trackpads send many small steps
+  if(Math.abs(acc)<50)return;const dir=acc>0?1:-1;acc=0;
+  const o=s.options;let i=s.selectedIndex;
+  do{i+=dir}while(i>=0&&i<o.length&&(o[i].disabled||o[i].hidden));
+  if(i<0||i>=o.length)return;
+  s.selectedIndex=i;if(s.onchange)s.onchange();else s.dispatchEvent(new Event("change",{bubbles:true}))},{passive:false})})();
+</script>
+</body>
+</html>
