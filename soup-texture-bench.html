@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soup Texture Bench</title>
+<style>
+:root{
+  --panel:#c6c6c6; --panel-hi:#ffffff; --panel-lo:#555555; --edge:#000;
+  --slot:#8b8b8b; --slot-hi:#ffffff; --slot-lo:#373737;
+  --ink:#3f3f3f; --ink-soft:#5a5a5a; --label:#404040;
+  --btn:#6f6f6f; --btn-hi:#aaaaaa; --btn-lo:#3c3c3c; --btn-ink:#e0e0e0;
+  --reset:#c0392b; --reset-hi:#e8786c; --reset-lo:#6e1d15; --reset-hover:#d0473a; --sel:#f2b33d; --bg:#2b2420; --bg-dots:#352d28; --danger:#a83a2c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg);
+  background-image:radial-gradient(var(--bg-dots) 1px,transparent 1px);
+  background-size:8px 8px;
+  color:var(--ink);
+  font:14px/1.35 Tahoma,"Segoe UI",Verdana,sans-serif;
+  overflow:hidden;
+}
+/* Minecraft-style bevel */
+.bevel{background:var(--panel);border:2px solid var(--edge);
+  box-shadow:inset 2px 2px 0 var(--panel-hi),inset -2px -2px 0 var(--panel-lo)}
+.inset{background:var(--slot);
+  box-shadow:inset 2px 2px 0 var(--slot-lo),inset -2px -2px 0 var(--slot-hi)}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;padding:10px;gap:8px}
+header{display:flex;align-items:stretch;gap:6px}
+.tab{min-height:44px;padding:0 18px;font:inherit;font-weight:bold;color:var(--label);
+  background:#a8a8a8;border:2px solid var(--edge);border-bottom-width:2px;cursor:pointer;
+  box-shadow:inset 2px 2px 0 #d8d8d8,inset -2px -2px 0 #6a6a6a}
+.tab[aria-selected=true]{background:var(--panel);box-shadow:inset 2px 2px 0 var(--panel-hi),inset -2px -2px 0 var(--panel-lo);color:#111}
+.title{margin-left:auto;align-self:center;color:#d9c7a8;font-weight:bold;letter-spacing:.5px}
+.title small{color:#9c8a70;font-weight:normal;margin-left:8px}
+main{min-height:0}
+.view{display:none;height:100%;gap:8px;grid-template-columns:minmax(0,1fr) 360px}
+.view.on{display:grid}
+.stage{display:grid;grid-template-rows:auto 1fr auto;min-height:0;padding:8px;gap:8px}
+.toolrow{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.canvasWrap{position:relative;min-height:0;overflow:hidden;touch-action:none;cursor:crosshair}
+.canvasWrap canvas{position:absolute;left:0;top:0;image-rendering:pixelated}
+.side{overflow-y:auto;overscroll-behavior:contain;padding:8px;display:flex;flex-direction:column;gap:10px}
+fieldset{border:0;margin:0;padding:8px 8px 10px}
+fieldset .legend{display:block;width:100%;padding:0 0 6px;font-weight:bold;color:#222;border-bottom:2px solid #9a9a9a;margin-bottom:8px}
+.row{display:grid;grid-template-columns:96px 1fr 84px;align-items:center;gap:8px;min-height:44px}
+.row label{color:var(--label)}
+.row2{display:flex;gap:6px;flex-wrap:wrap}
+button.mc{min-height:44px;min-width:44px;padding:0 12px;font:inherit;font-weight:bold;color:var(--btn-ink);
+  background:var(--btn);border:2px solid var(--edge);cursor:pointer;text-shadow:2px 2px 0 #2a2a2a;
+  box-shadow:inset 2px 2px 0 var(--btn-hi),inset -2px -2px 0 var(--btn-lo)}
+button.mc:hover{background:#7d7fa8;box-shadow:inset 2px 2px 0 #b6b9e6,inset -2px -2px 0 #3f415e}
+button.mc:active{box-shadow:inset 2px 2px 0 var(--btn-lo),inset -2px -2px 0 var(--btn-hi)}
+button.mc[aria-pressed=true]{background:#4f6b3a;box-shadow:inset 2px 2px 0 #87a868,inset -2px -2px 0 #2c3d20}
+button.mc.warn{background:var(--danger)}
+button.mc.reset{background:var(--reset);box-shadow:inset 2px 2px 0 var(--reset-hi),inset -2px -2px 0 var(--reset-lo)}
+button.mc.reset:hover{background:var(--reset-hover)}
+input[type=number],input[type=text],select{font-size:16px;height:44px;width:100%;padding:0 6px;border:0;color:#fff;
+  background:#1e1e1e;box-shadow:inset 2px 2px 0 #000,inset -2px -2px 0 #6a6a6a;font-family:Consolas,monospace}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:8px;background:#1e1e1e;box-shadow:inset 1px 1px 0 #000,inset -1px -1px 0 #777}
+input[type=range]::-moz-range-track{height:8px;background:#1e1e1e}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:36px;margin-top:-14px;background:var(--btn);
+  border:2px solid #000;box-shadow:inset 2px 2px 0 var(--btn-hi),inset -2px -2px 0 var(--btn-lo);cursor:grab}
+input[type=range]::-moz-range-thumb{width:18px;height:32px;background:var(--btn);border:2px solid #000;border-radius:0;cursor:grab}
+input[type=color]{width:44px;height:44px;padding:0;border:0;background:none;cursor:pointer}
+.check{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;color:var(--label)}
+.check input{width:22px;height:22px;accent-color:#4f6b3a}
+.slots{display:flex;flex-wrap:wrap;gap:4px}
+.slot{width:44px;height:44px;position:relative;cursor:pointer;padding:6px}
+.slot i{display:block;width:100%;height:100%}
+.slot.sel{outline:3px solid var(--sel);outline-offset:-3px}
+.status{display:flex;gap:16px;padding:6px 12px;color:#d9c7a8;font-family:Consolas,monospace;font-size:13px;min-height:30px;align-items:center}
+.status b{color:#fff;font-weight:normal}
+.previews{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.pv{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--label);font-size:12px}
+.pv canvas{image-rendering:pixelated;background:#8b8b8b;box-shadow:inset 2px 2px 0 #373737,inset -2px -2px 0 #fff}
+.plane{perspective:520px;height:200px;overflow:hidden;display:grid;place-items:center;background:#5d7da5}
+.plane canvas{image-rendering:pixelated;transform-origin:50% 50%}
+.note{color:var(--ink-soft);font-size:12.5px;margin:4px 0 0}
+.toast{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);padding:10px 16px;color:#fff;background:#222;border:2px solid #000;
+  box-shadow:inset 2px 2px 0 #555;display:none;font-weight:bold}
+.confirm{display:none;gap:6px;align-items:center;padding:6px;background:#ead9b5;border:2px solid #000}
+.confirm.on{display:flex}
+.layers{display:flex;flex-direction:column;gap:3px}
+.layer{display:flex;align-items:stretch;gap:4px;background:#8b8b8b;box-shadow:inset 2px 2px 0 #373737,inset -2px -2px 0 #fff;padding:3px}
+.layer.on{outline:3px solid var(--sel);outline-offset:-3px}
+.layer .eye{display:grid;place-items:center;width:44px;min-height:44px;cursor:pointer}
+.layer .eye input{width:22px;height:22px;accent-color:#4f6b3a}
+.layer .lname{flex:1;text-align:left;font:inherit;font-weight:bold;color:#111;background:none;border:0;cursor:pointer;min-height:44px;padding:0 6px}
+.layer .lname small{display:block;font-weight:normal;color:#2e2e2e;font-size:12px}
+.keys{display:flex;flex-direction:column;gap:2px}
+.keyrow{display:grid;grid-template-columns:1fr 150px;align-items:center;gap:6px}
+.keyrow span{color:var(--label)}
+.keybtn{font-family:Consolas,monospace!important;font-weight:normal!important;font-size:13px!important;text-shadow:none!important}
+button.mc:disabled{cursor:not-allowed}
+.modalBack{position:fixed;inset:0;background:rgba(20,16,14,.6);display:grid;place-items:center;z-index:20}
+.modalBack[hidden]{display:none}
+.modal{width:min(520px,calc(100vw - 32px));padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.modal .legend{font-weight:bold;color:#222;border-bottom:2px solid #9a9a9a;padding-bottom:6px;margin-bottom:6px}
+button.mc.go{background:#4f6b3a;box-shadow:inset 2px 2px 0 #87a868,inset -2px -2px 0 #2c3d20}
+.fxlist{display:flex;flex-direction:column;gap:6px}
+.fxrow{padding:6px 8px;background:#a4a4a4}
+.fxhead{display:grid;grid-template-columns:28px 1fr 44px 44px;gap:4px;align-items:center}
+.fx3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fx3 label{display:flex;flex-direction:column;font-size:12.5px;color:var(--label);gap:2px}
+.code{margin:0;padding:8px 10px;max-height:150px;overflow:auto;background:#1e1e1e;color:#d9c7a8;font:13px/1.4 Consolas,monospace;white-space:pre}
+.ovPrev{padding:4px;display:inline-block}
+.ovPrev canvas{width:240px;height:135px;image-rendering:pixelated;display:block}
+kbd{font-family:Consolas,monospace;background:#e8e8e8;border:1px solid #888;padding:0 4px}
+.banner{display:none;padding:8px 12px;background:#a83a2c;color:#fff;font-weight:bold;border:2px solid #000}
+@media (max-width:900px){.view.on{grid-template-columns:1fr;grid-template-rows:60% auto}.side{max-height:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <button class="tab" role="tab" aria-selected="true" data-tab="bucket">Bucket overlay</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="fluid">Soup fluid</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="fx">Dissolve FX</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="ov">Overlay</button>
+    <div class="title">Ocean Soup texture bench<small>16×16 · kubejs/assets/kubejs/textures</small></div>
+  </header>
+  <main>
+    <div id="errBanner" class="banner"></div>
+
+    <!-- ================= BUCKET ================= -->
+    <section class="view on" id="v-bucket">
+      <div class="stage bevel">
+        <div class="toolrow">
+          <button class="mc" data-btool="move" aria-pressed="true">Move</button>
+          <button class="mc" data-btool="paint" aria-pressed="false">Pencil</button>
+          <button class="mc" data-btool="erase" aria-pressed="false">Eraser</button>
+          <button class="mc" data-btool="picker" aria-pressed="false">Picker</button>
+          <button class="mc" data-btool="lasso" aria-pressed="false">Lasso</button>
+          <button class="mc" data-btool="maskbrush" aria-pressed="false">Mask brush</button>
+          <span style="flex:1"></span>
+          <button class="mc modSwapBtn" id="bModSwap" aria-pressed="false" title="Swap which modifier adds and which removes mask">Shift = add</button>
+          <button class="mc" id="bZoomFit">Fit</button>
+          <button class="mc" id="bUndo">Undo</button>
+          <button class="mc" id="bRedo">Redo</button>
+        </div>
+        <div class="canvasWrap inset" id="bWrap"><canvas id="bCanvas"></canvas></div>
+        <div class="previews">
+          <div class="pv"><canvas id="pvB1" width="16" height="16" style="width:32px;height:32px"></canvas>2×</div>
+          <div class="pv"><canvas id="pvB2" width="16" height="16" style="width:64px;height:64px"></canvas>4×</div>
+          <div class="pv"><canvas id="pvWater" width="16" height="16" style="width:64px;height:64px"></canvas>water bucket</div>
+          <div class="pv"><canvas id="pvB3" width="16" height="16" style="width:128px;height:128px"></canvas>8×</div>
+          <p class="note" id="bHint" style="margin-left:12px;max-width:440px"></p>
+        </div>
+      </div>
+      <aside class="side bevel">
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Layers</div>
+          <div id="bLayers" class="layers"></div>
+          <div class="row2" style="margin-top:6px">
+            <button class="mc" id="bLayAdd">Add</button>
+            <button class="mc" id="bLayDup">Duplicate</button>
+            <button class="mc" id="bLayUp">Up</button>
+            <button class="mc" id="bLayDown">Down</button>
+            <button class="mc warn" id="bLayDel">Delete</button>
+          </div>
+          <div class="confirm" id="bDelConfirm">Delete this layer? <button class="mc warn" id="bDelYes">Delete</button><button class="mc" id="bDelNo">Keep</button></div>
+          <div class="row" style="grid-template-columns:96px 1fr"><label for="bLayName">Name</label><input type="text" id="bLayName" maxlength="24"></div>
+          <div class="row" style="grid-template-columns:96px 1fr 84px"><label for="bLayOpa">Opacity</label><input type="range" id="bLayOpa" min="0" max="1" step="0.05"><input type="number" id="bLayOpaN" step="0.05"></div>
+          <div class="row2">
+            <button class="mc" id="bMaskToggle">Add mask</button>
+            <button class="mc" id="bMaskInvert">Invert mask</button>
+            <button class="mc" id="bMaskShow" aria-pressed="true">Show mask</button>
+          </div>
+          <p class="note">Masks hide parts of a layer. Lasso and Mask brush edit the selected layer's mask.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4" id="bPatternBox">
+          <div class="legend">Pattern on the plane</div>
+          <div class="row"><label for="bTx">Offset X</label><input type="range" id="bTx" min="-32" max="32" step="0.05"><input type="number" data-for="bTx" step="0.05"></div>
+          <div class="row"><label for="bTy">Offset Y</label><input type="range" id="bTy" min="-32" max="32" step="0.05"><input type="number" data-for="bTy" step="0.05"></div>
+          <div class="row"><label for="bScale">Scale</label><input type="range" id="bScale" min="0.25" max="4" step="0.05"><input type="number" data-for="bScale" step="0.05"></div>
+          <div class="row"><label for="bRot">Rotate °</label><input type="range" id="bRot" min="-180" max="180" step="1"><input type="number" data-for="bRot" step="1"></div>
+          <div class="row"><label for="bSkew">Skew °</label><input type="range" id="bSkew" min="-60" max="60" step="1"><input type="number" data-for="bSkew" step="1"></div>
+          <label class="check"><input type="checkbox" id="bFlip"> Mirror pattern</label>
+          <div class="row2"><button class="mc" id="bResetT">Reset transform</button></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Broth and bits</div>
+          <div class="row"><label for="bBroth">Broth</label><input type="color" id="bBroth"><span></span></div>
+          <div class="row"><label for="bShade">Shading</label><input type="range" id="bShade" min="0" max="1" step="0.05"><input type="number" data-for="bShade" step="0.05"></div>
+          <div class="row"><label for="bGrain">Grain</label><input type="range" id="bGrain" min="0" max="0.6" step="0.01"><input type="number" data-for="bGrain" step="0.01"></div>
+          <div class="row"><label for="bBits">Bits</label><input type="range" id="bBits" min="0" max="0.5" step="0.01"><input type="number" data-for="bBits" step="0.01"></div>
+          <div class="row"><label for="bSeed">Seed</label><input type="range" id="bSeed" min="1" max="999" step="1"><input type="number" data-for="bSeed" step="1"></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Paint colour</div>
+          <div class="slots" id="bSlots"></div>
+          <div class="row"><label for="bPick">Edit slot</label><input type="color" id="bPick"><span></span></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Shortcuts</div>
+          <div class="keys keysBox"></div>
+          <div class="row2" style="margin-top:6px"><button class="mc keysReset">Paint.net defaults</button></div>
+          <p class="note">Click a shortcut, then press the new keys. Esc cancels, Backspace clears.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">File</div>
+          <div class="row2">
+            <button class="mc" id="bExport">Save overlay PNG</button>
+            <button class="mc" id="bImport">Load PNG as layer</button>
+            <button class="mc" id="bOldLayer">Add old overlay v1</button>
+          </div>
+          <p class="note">Saves every visible layer above the bucket as <kbd>ocean_soup_bucket.png</kbd>. Put it in <kbd>kubejs/assets/kubejs/textures/item/</kbd>, then <kbd>F3</kbd>+<kbd>T</kbd> in game.</p>
+          <div class="row2"><button class="mc reset" id="bReset">Reset values</button></div>
+          <div class="confirm" id="bResetConfirm">Put every slider and colour back to default? Layers stay. <button class="mc reset" id="bResetYes">Reset</button><button class="mc" id="bResetNo">Keep</button></div>
+          <input type="file" id="bFile" accept="image/png" hidden>
+        </fieldset>
+      </aside>
+    </section>
+
+    <!-- ================= FLUID ================= -->
+    <section class="view" id="v-fluid">
+      <div class="stage bevel">
+        <div class="toolrow">
+          <button class="mc" data-ftool="move" aria-pressed="true" title="Drag to slide the generated bits; Shift+drag rotates; Ctrl+wheel spreads">Move bits</button>
+          <button class="mc" data-ftool="paint" aria-pressed="false">Pencil</button>
+          <button class="mc" data-ftool="erase" aria-pressed="false">Eraser</button>
+          <button class="mc" data-ftool="picker" aria-pressed="false">Picker</button>
+          <button class="mc" data-ftool="lasso" aria-pressed="false">Lasso</button>
+          <button class="mc" data-ftool="maskbrush" aria-pressed="false">Mask brush</button>
+          <span style="width:12px"></span>
+          <button class="mc" data-fsheet="still" aria-pressed="true">Still</button>
+          <button class="mc" data-fsheet="flow" aria-pressed="false">Flowing</button>
+          <span style="flex:1"></span>
+          <button class="mc modSwapBtn" aria-pressed="false">Shift = add</button>
+          <button class="mc" id="fPlay" aria-pressed="true">Pause</button>
+          <button class="mc" id="fUndo">Undo</button>
+          <button class="mc" id="fRedo">Redo</button>
+        </div>
+        <div class="canvasWrap inset" id="fWrap"><canvas id="fCanvas"></canvas></div>
+        <div class="row" style="grid-template-columns:70px 1fr 84px">
+          <label for="fFrame">Frame</label><input type="range" id="fFrame" min="0" max="31" step="1" value="0"><input type="number" data-for="fFrame" step="1">
+        </div>
+      </div>
+      <aside class="side bevel">
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Layers</div>
+          <div id="fLayers" class="layers"></div>
+          <div class="row2" style="margin-top:6px">
+            <button class="mc" id="fLayAdd">Add</button>
+            <button class="mc" id="fLayOld">Add old v2</button>
+            <button class="mc" id="fLayOldSplit">Add old v2 split</button>
+            <button class="mc" id="fLayLoad">Load PNG as layer</button>
+            <input type="file" id="fFile" accept="image/png" multiple hidden>
+            <button class="mc" id="fLayDup">Duplicate</button>
+            <button class="mc" id="fLayUp">Up</button>
+            <button class="mc" id="fLayDown">Down</button>
+            <button class="mc warn" id="fLayDel">Delete</button>
+          </div>
+          <div class="confirm" id="fDelConfirm">Delete this layer? <button class="mc warn" id="fDelYes">Delete</button><button class="mc" id="fDelNo">Keep</button></div>
+          <div class="row" style="grid-template-columns:96px 1fr"><label for="fLayName">Name</label><input type="text" id="fLayName" maxlength="24"></div>
+          <div class="row"><label for="fLayOpa">Opacity</label><input type="range" id="fLayOpa" min="0" max="1" step="0.05"><input type="number" id="fLayOpaN" step="0.05"></div>
+          <div class="row2">
+            <button class="mc" id="fMaskToggle">Add mask</button>
+            <button class="mc" id="fMaskInvert">Invert mask</button>
+            <button class="mc" id="fMaskShow" aria-pressed="true">Show mask</button>
+          </div>
+          <label class="check"><input type="checkbox" id="fMaskFlow"> Mask and painted pixels drift with the flow</label>
+          <p class="note">Still and Flowing each keep their own painted pixels and masks.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">On a plane</div>
+          <div class="plane" id="planeBox"><canvas id="planeCanvas" width="96" height="96"></canvas></div>
+          <div class="row"><label for="pTilt">Tilt °</label><input type="range" id="pTilt" min="0" max="80" step="1"><input type="number" data-for="pTilt" step="1"></div>
+          <div class="row"><label for="pSpin">Spin °</label><input type="range" id="pSpin" min="-180" max="180" step="1"><input type="number" data-for="pSpin" step="1"></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Broth layer</div>
+          <div class="row"><label for="fBroth">Colour</label><input type="color" id="fBroth"><span></span></div>
+          <div class="row"><label for="fBright">Brightness</label><input type="range" id="fBright" min="-0.5" max="0.5" step="0.01"><input type="number" data-for="fBright" step="0.01"></div>
+          <div class="row"><label for="fContrast">Contrast</label><input type="range" id="fContrast" min="0.2" max="4" step="0.05"><input type="number" data-for="fContrast" step="0.05"></div>
+          <div class="row"><label for="fGrain">Grain</label><input type="range" id="fGrain" min="0" max="0.8" step="0.01"><input type="number" data-for="fGrain" step="0.01"></div>
+          <div class="row"><label for="fGrainSize">Grain size</label><input type="range" id="fGrainSize" min="1" max="4" step="1"><input type="number" data-for="fGrainSize" step="1"></div>
+          <label class="check"><input type="checkbox" id="fGrainAnim"> Grain shimmers between frames</label>
+          <div class="row"><label for="fAlpha">See-through</label><input type="range" id="fAlpha" min="60" max="255" step="1"><input type="number" data-for="fAlpha" step="1"></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Generated bits layer</div>
+          <div class="row"><label for="fCount">Amount</label><input type="range" id="fCount" min="0" max="80" step="1"><input type="number" data-for="fCount" step="1"></div>
+          <div class="row"><label for="fBig">2-px bits</label><input type="range" id="fBig" min="0" max="1" step="0.05"><input type="number" data-for="fBig" step="0.05"></div>
+          <div class="row"><label for="fOx">Offset X</label><input type="range" id="fOx" min="-1" max="1" step="0.01"><input type="number" data-for="fOx" step="0.01"></div>
+          <div class="row"><label for="fOy">Offset Y</label><input type="range" id="fOy" min="-1" max="1" step="0.01"><input type="number" data-for="fOy" step="0.01"></div>
+          <div class="row"><label for="fScale">Spread</label><input type="range" id="fScale" min="0.25" max="3" step="0.05"><input type="number" data-for="fScale" step="0.05"></div>
+          <div class="row"><label for="fRot">Rotate °</label><input type="range" id="fRot" min="-180" max="180" step="1"><input type="number" data-for="fRot" step="1"></div>
+          <div class="row"><label for="fSpeed">Flow px/frame</label><input type="range" id="fSpeed" min="0" max="4" step="1"><input type="number" data-for="fSpeed" step="1"></div>
+          <div class="row"><label for="fSeed">Seed</label><input type="range" id="fSeed" min="1" max="999" step="1"><input type="number" data-for="fSeed" step="1"></div>
+          <p class="note">Bits ride the flow at the speed above. Vanilla water scrolls 1 px per frame.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Colours</div>
+          <div class="slots" id="fSlots"></div>
+          <div class="row"><label for="fPick">Edit slot</label><input type="color" id="fPick"><span></span></div>
+          <p class="note">Used by the Pencil and by the generated bits.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Shortcuts</div>
+          <div class="keys keysBox"></div>
+          <div class="row2" style="margin-top:6px"><button class="mc keysReset">Paint.net defaults</button></div>
+          <p class="note">Shared with the Bucket tab. Click one, press the new keys. Esc cancels, Backspace clears.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">File</div>
+          <div class="row2">
+            <button class="mc" id="fExportStill">Save still PNG</button>
+            <button class="mc" id="fExportFlow">Save flow PNG</button>
+            <button class="mc" id="fExportMeta">Save .mcmeta</button>
+          </div>
+          <p class="note"><kbd>ocean_soup_still.png</kbd> and <kbd>ocean_soup_flow.png</kbd> go in <kbd>kubejs/assets/kubejs/textures/block/</kbd>. Keep the existing .mcmeta files unless you change timing.</p>
+          <div class="row2"><button class="mc reset" id="fReset">Reset values</button></div>
+          <div class="confirm" id="fResetConfirm">Put every slider and colour back to default? Layers stay. <button class="mc reset" id="fResetYes">Reset</button><button class="mc" id="fResetNo">Keep</button></div>
+        </fieldset>
+      </aside>
+    </section>
+    <!-- ================= FX ================= -->
+    <section class="view" id="v-fx">
+      <div class="stage bevel">
+        <div class="toolrow">
+          <button class="mc" id="xBurst">Burst again</button>
+          <label class="check" style="margin-left:6px"><input type="checkbox" id="xLoop" checked> Repeat every 1.5 s</label>
+          <span style="flex:1"></span>
+          <span class="note" style="margin:0">Rough preview. Real particle sprites, fade and gravity are Minecraft's.</span>
+        </div>
+        <div class="canvasWrap inset" id="xWrap" style="cursor:default"><canvas id="xCanvas"></canvas></div>
+        <div>
+          <div class="legend" style="font-weight:bold;color:#222;margin-bottom:4px">What gets saved: <kbd>kubejs/server_scripts/ocean_soup_fx.js</kbd></div>
+          <pre id="xCode" class="code inset"></pre>
+        </div>
+      </div>
+      <aside class="side bevel">
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Particles</div>
+          <div id="xList" class="fxlist"></div>
+          <div class="row2" style="margin-top:6px">
+            <button class="mc" id="xAdd">Add particle</button>
+            <button class="mc" id="xFromSoup">Use soup colours</button>
+          </div>
+          <p class="note">"Use soup colours" copies the broth colour from the Soup fluid tab into every dust particle (darker shade for the second one).</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Underwater overlay</div>
+          <div class="row"><label for="xOverlay">Opacity</label><input type="range" id="xOverlay" min="0" max="255" step="1"><input type="number" data-for="xOverlay" step="1"></div>
+          <div class="ovPrev inset"><canvas id="xOvCanvas" width="160" height="90"></canvas></div>
+          <p class="note">The brown film when your head is in soup. 0 = invisible, 255 = solid. Saved into the same <kbd>ocean_soup_fx.js</kbd>, applies after <kbd>/reload</kbd>.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Sound</div>
+          <div class="row" style="grid-template-columns:96px 1fr"><label for="xSound">Sound id</label><input type="text" id="xSound" list="xSounds" placeholder="leave empty for silent"></div>
+          <datalist id="xSounds">
+            <option value="minecraft:block.bubble_column.upwards_inside"><option value="minecraft:block.bubble_column.bubble_pop">
+            <option value="minecraft:entity.generic.splash"><option value="minecraft:item.bucket.empty"><option value="minecraft:entity.player.swim">
+            <option value="minecraft:block.brewing_stand.brew"><option value="minecraft:entity.generic.drink"><option value="minecraft:block.honey_block.slide">
+          </datalist>
+          <div class="row"><label for="xVol">Volume</label><input type="range" id="xVol" min="0" max="2" step="0.05"><input type="number" data-for="xVol" step="0.05"></div>
+          <div class="row"><label for="xPitch">Pitch</label><input type="range" id="xPitch" min="0.5" max="2" step="0.05"><input type="number" data-for="xPitch" step="0.05"></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">File</div>
+          <div class="row2">
+            <button class="mc go" id="xSave">Save ocean_soup_fx.js</button>
+            <button class="mc" id="xCopy">Copy code</button>
+          </div>
+          <p class="note">Put it in <kbd>kubejs/server_scripts/</kbd> next to the spread script, then <kbd>/reload</kbd>. Without the file, the script uses its built-in soup effect.</p>
+          <div class="row2"><button class="mc reset" id="xReset">Reset values</button></div>
+          <div class="confirm" id="xResetConfirm">Go back to the default soup effect? <button class="mc reset" id="xResetYes">Reset</button><button class="mc" id="xResetNo">Keep</button></div>
+        </fieldset>
+      </aside>
+    </section>
+    <!-- ================= OVERLAY ================= -->
+    <section class="view" id="v-ov">
+      <div class="stage bevel">
+        <div class="toolrow">
+          <button class="mc" data-otool="move" aria-pressed="true" title="Drag to slide the selected layer">Move layer</button>
+          <button class="mc" data-otool="paint" aria-pressed="false">Pencil</button>
+          <button class="mc" data-otool="erase" aria-pressed="false">Eraser</button>
+          <button class="mc" data-otool="picker" aria-pressed="false">Picker</button>
+          <button class="mc" data-otool="lasso" aria-pressed="false">Lasso</button>
+          <button class="mc" data-otool="maskbrush" aria-pressed="false">Mask brush</button>
+          <span style="flex:1"></span>
+          <button class="mc modSwapBtn" aria-pressed="false">Shift = add</button>
+          <button class="mc" id="oFit">Fit</button>
+          <button class="mc" id="oUndo">Undo</button>
+          <button class="mc" id="oRedo">Redo</button>
+        </div>
+        <div class="canvasWrap inset" id="oWrap"><canvas id="oCanvas"></canvas></div>
+        <div class="previews" style="align-items:center">
+          <div class="pv"><canvas id="oScreen" width="320" height="180" style="width:320px;height:180px"></canvas>in game, stretched over the screen</div>
+          <div style="flex:1;min-width:220px">
+            <div class="row"><label for="oAlpha">Preview opacity</label><input type="range" id="oAlpha" min="0" max="255" step="1"><input type="number" data-for="oAlpha" step="1"></div>
+            <p class="note">Only for this preview. In game: <kbd>/oceansoup overlay 0-255</kbd>, or the Dissolve FX tab.</p>
+          </div>
+        </div>
+      </div>
+      <aside class="side bevel">
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Canvas</div>
+          <div class="row" style="grid-template-columns:96px 1fr"><label for="oSize">Size</label>
+            <select id="oSize"><option value="128x72">128 × 72 (chunky)</option><option value="256x144">256 × 144</option><option value="384x216">384 × 216</option><option value="512x288">512 × 288 (fine)</option><option value="64x64">64 × 64 (old)</option></select></div>
+          <p class="note">One big image stretched across the whole screen, so nothing repeats unless a layer is set to tile.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Layers</div>
+          <div id="oLayers" class="layers"></div>
+          <div class="row2" style="margin-top:6px">
+            <select id="oAddType" style="flex:1;min-width:150px"><option value="paint">Paint layer</option><option value="broth">Broth (generated)</option><option value="bits">Bits (generated)</option><option value="soup">Soup fluid texture</option><option value="old">Old 64×64 overlay</option></select>
+            <button class="mc" id="oLayAdd">Add</button>
+            <button class="mc" id="oLayLoad">Load PNG</button>
+            <input type="file" id="oFile" accept="image/png" hidden>
+          </div>
+          <div class="row2">
+            <button class="mc" id="oLayDup">Duplicate</button><button class="mc" id="oLayUp">Up</button><button class="mc" id="oLayDown">Down</button><button class="mc warn" id="oLayDel">Delete</button>
+          </div>
+          <div class="confirm" id="oDelConfirm">Delete this layer? <button class="mc warn" id="oDelYes">Delete</button><button class="mc" id="oDelNo">Keep</button></div>
+          <div class="row" style="grid-template-columns:96px 1fr"><label for="oLayName">Name</label><input type="text" id="oLayName" maxlength="24"></div>
+          <div class="row"><label for="oLayOpa">Opacity</label><input type="range" id="oLayOpa" min="0" max="1" step="0.05"><input type="number" id="oLayOpaN" step="0.05"></div>
+          <div class="row2">
+            <button class="mc" id="oMaskToggle">Add mask</button><button class="mc" id="oMaskInvert">Invert mask</button><button class="mc" id="oMaskShow" aria-pressed="true">Show mask</button>
+          </div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Selected layer</div>
+          <div class="row2" role="group" aria-label="Tiling">
+            <button class="mc" id="oTileOn" aria-pressed="false">Tile</button>
+            <button class="mc" id="oTileOff" aria-pressed="true">Don't tile</button>
+          </div>
+          <div id="oLayerFields"></div>
+          <div class="row"><label>Offset X</label><input type="range" id="oOx" min="-256" max="256" step="1"><input type="number" data-for="oOx" step="1"></div>
+          <div class="row"><label>Offset Y</label><input type="range" id="oOy" min="-256" max="256" step="1"><input type="number" data-for="oOy" step="1"></div>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">Colours</div>
+          <div class="slots" id="oSlots"></div>
+          <div class="row"><label for="oPick">Edit slot</label><input type="color" id="oPick"><span></span></div>
+          <p class="note">Used by the Pencil and the generated bits.</p>
+        </fieldset>
+        <fieldset class="inset" style="background:#b4b4b4">
+          <div class="legend">File</div>
+          <div class="row2"><button class="mc go" id="oSave">Save soup_overlay.png</button></div>
+          <p class="note">Goes in <kbd>kubejs/assets/kubejs/textures/misc/</kbd>, then <kbd>F3</kbd>+<kbd>T</kbd>. Ctrl+S works here too.</p>
+          <div class="row2"><button class="mc reset" id="oReset">Reset values</button></div>
+          <div class="confirm" id="oResetConfirm">Start over with the default overlay layers? <button class="mc reset" id="oResetYes">Reset</button><button class="mc" id="oResetNo">Keep</button></div>
+        </fieldset>
+      </aside>
+    </section>
+  </main>
+  <div class="status bevel" style="background:#3a312b;box-shadow:none">
+    <span>px <b id="stPx">–</b></span><span>zoom <b id="stZoom">–</b></span><span>tool <b id="stTool">–</b></span>
+    <span style="margin-left:auto">wheel zoom · right/middle drag pan · Ctrl+wheel scales pattern · Shift+drag rotates</span>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modalBack" id="saveBack" hidden>
+  <div class="modal bevel" role="dialog" aria-labelledby="saveTitle">
+    <div class="legend" id="saveTitle">Save block textures</div>
+    <label class="check"><input type="checkbox" id="svStill" checked> <span><kbd>ocean_soup_still.png</kbd> — still soup, 16×512</span></label>
+    <label class="check"><input type="checkbox" id="svFlow" checked> <span><kbd>ocean_soup_flow.png</kbd> — flowing soup, 32×1024</span></label>
+    <label class="check"><input type="checkbox" id="svMeta"> <span>.mcmeta timing files (only if you lost them)</span></label>
+    <p class="note">They go in <kbd>kubejs/assets/kubejs/textures/block/</kbd>, then <kbd>F3</kbd>+<kbd>T</kbd> in game.</p>
+    <div class="row2" style="justify-content:flex-end"><button class="mc" id="svCancel">Cancel</button><button class="mc go" id="svGo">Save</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- embedded source images (from the user's own 1.20.1 jar + current overlay) ----------
+const SRC = {
+  bucket: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAiUlEQVQ4y7WT7QnAIAxEXcpN/O8ODuMMjuQ2liucaIip/Qo8Cmnz7IXWuT/Ke980tgdTSi3n3CmlnJgiDoIYY4c9SnFVJWhiIITQkQLKlwIyCkaJuQ80a61TVgljmIIRLo/ZtwWolYBvqApw85UAD1wJlhG0PUiBOSxjUMCvcUsgJbdO/+RnelIHlx5daQ1EbF8AAAAASUVORK5CYII=",
+  water_bucket: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAsElEQVQ4y2NgoAUwNTX9jw0TrbGiogKMZ8yYgYLxGgTTqOx/5r9exOX/Lvkv/5vE3wJjEB+EQXIgNVgNAQmCFIA0RjV9BmOYISA2iAbxQWpwGgDDIEUwDTBDYBpxegMkeOPGjf8rVqz4jysQi4qK/k+bNg2/AcgYZBgIgzSBNBNtAAjgMgDmQqwGgCQpMgCkgJABOL2ALRzQDcCrGd0bMANAmog2AN0QkmynSmYiBwAAz+hjIXMC7+sAAAAASUVORK5CYII=",
+  water_still: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAIACAYAAACLuuzTAAAJOklEQVR42u2dTW7cPAyGef97dNtVFln3ACnQoEGu0lUKDUCDpvnyT7Jnpt+3MJqktiyL0iOSoij68ePHy/fv37fr27dv2yX/zte4/9evXy8/f/58+f379wvJB9BDumB5UXSDfDNf8n6yqi1v1AXompFVdasW6DNJ3yTfqGtgvYCsannX+/v7TQpfX1+3Qmn8YYhk/IveiMR5K2CUNK5RAMtY/i4L0w057iEkPu9yxei1uivGbk2oW/XwE1Cry/5yKyB6Iz/M0hoilwWRbpwhmj9//twu+XfUL+j19bXMg/GSt7e3O/Ng+4S78YALI1RtxAPYBlM8GCLJ8MBq1AMPxs+jwPGWqCGv54HZlS/lAezKp/FAdiqW1pBQyAO+2ePB1pV1B8q0Pr/k4+Mj5gGC6fU8CCcWD2HX88CTgJzBNx6MXzTe9e8uD0YhmgdSP9BzwjIeuI2YnXDmh/NdeZD6BC37Fg/QXLnxAKmxaABxf9n0A/lgRic4SMEDiK5yigde1e/HA9QuhG5A1R7DfMcDFom+UeMe8oD1gPHAKB3xgB9o8UCLN+SBNz88CQ+sKoeaasQDZoLJA2vqPp0HO3tBd2E0D17LA0TmFg+84X4ND/SoXMsD7gesI0geWLqBtCOmeJAaC2jCWc8Db0g/Bg+01R7yYIhKimuaB9bDoyabvTDFg4yBUbYXKhd1VJspHhz8iUt4YJn6kTnI4ifZuhke8JvHNfSJMg9KYyES8brp3VNhon5BqN9HPEjrSGUeSMRrEVu12fEgOwKhfmDZRst5oHsoVYzMJTzg2rBxXuKB9XllHpj2gmXqt3ggPVaW7OWb+W+UhSjS1qjqzX8iHujqLuHB6AMpHuiL+bCcBwf9YJoHqOXLPNAFpR3TFR5wTShyMETOiDU8iNx+1mdM82AzOGZ4cCug65A8nwfZeaLNg7L/gPtAiwdsPyznwVj9XMMDNJEiP8quEbNvgzywRuB9eYDMfLjeiNw8SLwmD+SbRslorVGyYseDTMM9AQ+8iWQZD1ouEN1oIQ8sJlji22qgO4we2uxv1tbrgQfWrJSSAqIO4sH4FPkyqtBnmgdmME+VB+X1xpAHXqhIiQf6wcflwXn2wnIeZHSDa3ig1xtKPGBDQ8eocZ8weSCtk9N4sOtIy3mQLWDHg8h/MMWDaFk57AdlHngBHNBe6PCAe+kUD9LrC24kDDLrl/JgKqTqGh4gu4k7i9QP5KgctTk441o8sFxhqOvejwdoeoM8kNFAaR6gyWOaB6E/MVsLvb5wG84ZKZzCA1cKbR54Heb+PLDmxhQPdCBTSj+QvU4/pI2QAw/GG/nBNA84Oi7iAUfKmDzo+hAgD6JVLtgTo/0KS3iQsheW80DqCNJZPcWDURhlkf6YPNg60mPyAG18cHlgBTOUeaA3wURG+RZqq71XVtfle2X0DHk+9EyPpGwMSlqM9+NB1PssDabFAx2/1PLqPgkPImt2PQ9QNS3XYJkH7PqzXEQpHlj+g60fTPPAWt1Cpi7HYMjZieSCw3IepCLjMhHTZf+BxwO5bGRa71kebOZ/lQd68ep+PDjHf/B4PEBLBSEPtCu4zQM56jQPDnFp8o0t/SDiARsi43P43hsPvAczm6Mos5r1eDyQnt40D1BXL/FAD+WNBxkbESkbT8YDS+TX80BPhSke8NYjkwfe8oe2Ea3gBrK2ZqOGneYBZ154HB7ADAyX8MD17pd4YG10yNSILT3Kxp08IQ/GvIc2ghx4UIl8meaBNpXTPPj8/DSd+OStLfFAky5CrSekeQClkOUB9zzmAUuJ5D7fx+JB2REVzcbIVdjmwWYzdXlw0A+yPNCfcw0P0pFxlqUarYBRJxquxQMU9Hw+D7S37yBGK3xwmgdWa2sebB4MuS234pwNV7pKPKha7/8QDzZ/4hQPZuITz+eBnuashpziwS6kKsMDSwF9QB5oRSLNg2h9QS6VSCfFOTzIZiY5lwdoLijzwMOby4PIHbhbX7icB+vTF1iNpHmA1iTP40HGq9PiwUFD8fYotHgQRcW58QfTPIjCiWR4VZsHkMqX8mDnP0BbUKyaWW3S4oG5IarqP3iwdCaWzHUuyTYPwollmgdRViaPB+5uomt5kLHOeF1B+hN3PKhsUy7bCyUeVBOsUGQnWFmK3PWFytas3aawKg92Hs1/jAdaP/B4kK7BY/BgbE02eeBFv3AbpPyJ1oJkmgeZ/QuQB9n1BUQtitL4hDzIBi+19IMSD6qZ6/7nQZDJU9sLntL1RDzg9cYWD1Cc4ja5LuFB5PaSPJDayloeRFlZzIxt2dSfaR5Y0V9WPNKOB16obeiM85JpoR2Xh+WB5+SBO5z1spnLg5ld9y0emDNThgdWbv6QB0gvWMuDKP+B9G7KT9l8adIRmeWB6cmqDKAyD9zZGfFAnobgxidGofdlHnhcgFnrZjJR3JcHbqKtU3gQZvKsJOxu8cD6HELrJ94eeJmhx+VBKx8K4qOVc/5whERHEqX8SKXMfVmNnZCzyYoY11lND2FlLR6g5BmWfgB50IkaX3f6wTQPvP88nQep9UY0b5ht4G1V14MopR9Ixxva8wp5kO0blD02hL2aWjKp/Y1eKC51DO7U1JY1xinyG1j6gbRqyUokF83YcJ1Jeycy0RBtHkzrB9P5UFI8sHJFtXkAUwNXeXCIT/RcPJIHFt5MP1LmBBRZ8BoeoISjKBoi5EE20VA533pbP/BMoTC9EdIPDvmVo/zyMEW0xQNrDCzjwVQ4Udub1+ZBFK8c8iBSsMo8SO1fQGJt8cBbizzwwOv7pbW2Mg+yoUPX8iC7o8jlQbS+EJ6/0OaB12kgD7IHFUydx4K8vlQ9LqHEg2g/U4oHpZMDMwXI3IGpfOv8M0I9eTpQFJuw5UdaxgPv/A25u8q1XE/hgad8UOXYkDQPPGv+wAO0JJZNQkd6DcnjwdJw4yXnM52nH0Sp8885jyXiAe/dCfc7a8czmmBCHkSnB5r5E6fOc40aE3k3KXusVOl8puwJQS4PMuc3tuITZW6YNTzQa0kyJu90HpSG8/XnuWZOBJjmQek8Vx7iJg+0aKx8iTCja+e8d85CsPHgP3be+zQPUvnWoxOVW+c7o0Yl3Wl0TN4pPEgr2/flAZL/kvNc0zywhnh4nis6SgPx4C8Vau11ht0ZaAAAAABJRU5ErkJggg==",
+  old_still: "data:image/png;base64,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",
+  old_flow: "data:image/png;base64,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",
+  old_overlay: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAArElEQVR4nO2PoQrCUABFj2B5lqdvizrEZFgRhp+hfeAH2IyCi2IWTGuCX6BJ0E8YWMU0FJNz8NKLs4niwLiyEw/3XrhQNJU8+Zg6WXi36LQshspjm0YA+IvjT/5LzEe9bN8weDHMVmvCYAxAog1RG7wYbCkINqd3r/o5kGiDLxV1t8YhDFBSkGpD321i354oR3C5pv8vTAbdzJYCJQUAqTYk2rDcnXPzJSXF8wL3ri+y2fp1UgAAAABJRU5ErkJggg==",
+  old_overlay64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAWfmNhQlgAABZ+anVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAAFlhqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmI1ZmI3NTMxLTNmYmUtNGE1Mi04MmE5LTJmOWFmMWVhZTc2MwAAAAOTanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAAuGp1bWIAAABEanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5pbmdyZWRpZW50LnYzAAAAABhjMnNoY5iCVPftkNHUboXbdV/sMgAAAGxjYm9yo2lkYzpmb3JtYXRpaW1hZ2UvcG5namluc3RhbmNlSUR4LHhtcDppaWQ6OTc1NWVlM2MtMGFhYy00MmI0LTg1OTMtZjc1MjNlM2MzZTVmbHJlbGF0aW9uc2hpcGhwYXJlbnRPZgAAAeJqdW1iAAAAQWp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuYWN0aW9ucy52MgAAAAAYYzJzaK8hrp0EVOhHzCvbf0HJvDUAAAGZY2JvcqJnYWN0aW9uc4KiZmFjdGlvbmtjMnBhLm9wZW5lZGpwYXJhbWV0ZXJzoWtpbmdyZWRpZW50c4GiY3VybHgtc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5pbmdyZWRpZW50LnYzZGhhc2hYIDxq5yEXIcLoG2S3Y6RHOsspB7CekEeySF0F33j1PKSppGZhY3Rpb254HWNvbS5hbnRocm9waWMuY2xhdWRlLnByb3ZpZGVkanBhcmFtZXRlcnOheB9jb20uYW50aHJvcGljLm9yaWdpbi1jb25maWRlbmNlZ3Vua25vd25rZGVzY3JpcHRpb254ZkNsYXVkZSBwcm92aWRlZCB0aGlzIGZpbGUgYXQgdGhlIHJlcXVlc3Qgb2YgYSB1c2VyIGFuZCBtYXkgaGF2ZSBjcmVhdGVkIG9yIG1vZGlmaWVkIHRoZSBmaWxlIGNvbnRlbnRzLm1zb2Z0d2FyZUFnZW50oWRuYW1lZkNsYXVkZXJhbGxBY3Rpb25zSW5jbHVkZWT1AAAAyGp1bWIAAABAanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5oYXNoLmRhdGEAAAAAGGMyc2j2ijATcdyiFusgvuiFqL2FAAAAgGNib3KlY2FsZ2ZzaGEyNTZjcGFkTQAAAAAAAAAAAAAAAABkaGFzaFggnW0l6maR5ENabkuzj7pEGcy7HxO78Q+fURZTvKUwnUxkbmFtZW5qdW1iZiBtYW5pZmVzdGpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZFooAAAI+anVtYgAAACdqdW1kYzJjbAARABCAAACqADibcQNjMnBhLmNsYWltLnYyAAAAAg9jYm9ypWNhbGdmc2hhMjU2aXNpZ25hdHVyZXhNc2VsZiNqdW1iZj0vYzJwYS91cm46YzJwYTpiNWZiNzUzMS0zZmJlLTRhNTItODJhOS0yZjlhZjFlYWU3NjMvYzJwYS5zaWduYXR1cmVqaW5zdGFuY2VJRHgseG1wOmlpZDoyOGQ5YWZiYS01MmVjLTQzNWUtODBiMi04Zjg2Y2JjYzRjZDRyY3JlYXRlZF9hc3NlcnRpb25zg6JjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggPGrnIRchwugbZLdjpEc6yykHsJ6QR7JIXQXfePU8pKmiY3VybHgqc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5hY3Rpb25zLnYyZGhhc2hYIPM2NZxNQtGvbbc/Mu2YSkWZOx/kCvzWcgUmQyh29JFZomN1cmx4KXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaGFzaC5kYXRhZGhhc2hYIBLkiOGZzlQJhBSmR/x6MoXjjiDnRQgtAeI2XuAjchBjdGNsYWltX2dlbmVyYXRvcl9pbmZvo2RuYW1lb0FudGhyb3BpYyBGaWxlc2d2ZXJzaW9uZTEuMC4wa3NwZWNWZXJzaW9uZTIuNC4wAAAQOGp1bWIAAAAoanVtZGMyY3MAEQAQgAAAqgA4m3EDYzJwYS5zaWduYXR1cmUAAAAQCGNib3LShFkCEqIBJhghWQIKMIICBjCCAY2gAwIBAgIUQOWgCu7COdC+uIP6BkIFPWdVEwAwCgYIKoZIzj0EAwMwSTEXMBUGA1UEChMOQW50aHJvcGljLCBQQkMxLjAsBgNVBAMTJUFudGhyb3BpYyBDb250ZW50IENyZWRlbnRpYWxzIFJvb3QgQ0EwHhcNMjYwODA3MTg0MzU2WhcNMjgwODA2MTk0MzU2WjBEMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEpMCcGA1UEAxMgQW50aHJvcGljIENsYXVkZSBDb250ZW50IFNpZ25pbmcwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASYegpry1AYBRTVNL1CpTlbROnY3dey+UrsF9C3phYrATN3ZHf93Mo8RQN0KOUuOn19P4oWNFWe5n2/She9N7eTo1gwVjAOBgNVHQ8BAf8EBAMCB4AwFQYDVR0lBA4wDAYKKwYBBAGD6F4CATAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFM5R4gSBTmRbI/jjxM+aPpzB11zCMAoGCCqGSM49BAMDA2cAMGQCMDFzHRSeAXrSy1WOzkbhPZ6Km2wGTmZ/2gK18k8BQGXyqz88Rdrz6CTX9flAnYNVxgIwcF9c3fVhqmJKpi+UhasNUMko69cyX6STPfta3Q8EjyzDjzoyrol46FP6VFHhvUcJoWNwYWRZDZ4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2WEAojjl+UQ/afy1lD6cuK01eTXSErt+xuFqieqzU0lHjLzEasNwdp1Wvd9R371dQp1grLh8vxcO11JJiNf5YD5tcbSmkHgAAA9FJREFUeJzt2D2LXFUAxvH/Offce+fe2dl529dswhqTNYqSQAyJYOwsLBRRUljYCcZGiNiJjVhaBWxVRBuxEJFg7aYyjRhWYwwxakJedjMzOzN35r6ecyy08xNcOB/g3z7w/MQX7z5nZ1lFZSytSDGdlcyLCk9KljsNKm0ZTDN8T1Jqw2urY+5MNeOlR/E8yf1RSp17Oc8qkqzEl4K7g5RMG9Z6MQaLteArwWonwhiLRPDNoMflpEuycJidP0fUvRcXz5+2gfKQwDDJEULge5JW7FNWBk8KwsBjrd1gd5yx3G5wezAnSUte7g64NFmizr1cjAOG05zdcU6gPBYixbGNRVbbDW7LkptFSs8klElAs6EYJgUbjT57oeFydYC693J3PyX0Jcf7htVuxELkc+3OmLJ7hFu9RQ6rBneriOvDXZgMSfOKv2Z7rFceAqh7Lz58/aQNfcFaL2Y/yVFKUlWWlXZItPEEk2nC9O5NVtoNxmlJkpb4niQrNEVlKCtLnXvx+TtnbWUtN8qMY0HEKCmIA49ZXtFpBuSlZiHymf+3tKe2+gwmGae2lrhy/SHDaU6de/H9B89bJaEVh/z8x5BXNk/z9a0f2ehFiGTEJDfsVSFCCAJfYo3FWDi63iJJS1qxT517echscnSjTV5qWk2fX6prnDu7STPyKeMOedjiYD9GG0t/IeRALyZQknv7KS+sP03de/HZG0/ZZ9ozLo37KCm5LUuOqYiHSQZA6P87FoGSFJUh9D0Wmz73hymHo4JpZqhzr0Yy4rtRSKAkCOjMBNGqx7JssD8r2AxzsqiNsWC0ZW+aoa1lEFmaxGRS17qXWlseBAblCbJCs9IOGc8Luo88SRR4DGmS5prhNCcvNZ04oCg1/VTQavjUvZeh76ELje9JfCWZ5RWeENy/cRUhBKN5wbLqMp1XxJFCG8u5t98nUJJRUlD3Xnx78bzd/vUKutAckiFFpVnuRCgpSLKKQ4+fYDJNEKO/6bZCHk5yZmlJFCqKUrP22HHq3IuP3zpjs9LQDD2kEPxeZehC4wUe0li2GjHNUPHimYNg4eqtEfeGc0ZJAUCpDXXuxacXnrXr3Yiic4SbOz+xtd7i5NEegZJs7zzgxKsX+O2rT/AWUn7YHXHQ+DQbiv1ZwUtvvsf2lx9R5144D6j5n3ce4DzAeYDzAOcBzgOcBzgPcB7gPMB5gPMA5wHOA5wHOA9wHuA8wHmA8wDnAc4DnAc4D3Ae4DzAeYDzAOcBzgOcBzgPcB7gPMB5gPMA5wHOA5wHOA9wHuA8wHmA8wDnAc4D/t//A2FARJ4zM9UjAAAAAElFTkSuQmCC",
+  water_flow: "data:image/png;base64,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",
+};
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const hex2rgb = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+const rgb2hex = c => "#" + c.map(v => clamp(Math.round(v),0,255).toString(16).padStart(2,"0")).join("");
+function hash(x,y,z,s){ let h = (x*374761393 + y*668265263 + z*2147483647 + s*144665) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
+function rng(seed){ let a = seed >>> 0 || 1; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 1800); }
+function store(k,v){ try{ localStorage.setItem("soupbench:"+k, JSON.stringify(v)); }catch(e){} }
+function load(k,d){ try{ const v = localStorage.getItem("soupbench:"+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function loadImage(src){ return new Promise((ok,bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; }); }
+function imgData(img){ const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+  const x = c.getContext("2d"); x.drawImage(img,0,0); return x.getImageData(0,0,img.width,img.height); }
+function download(canvas, name){ canvas.toBlob(b => { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast("Saved " + name); }, "image/png"); }
+function downloadText(txt, name){ const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt],{type:"application/json"}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove(); toast("Saved " + name); }
+
+const BIT_DEFAULTS = ["#eb781e", "#f58c78", "#3c6e28", "#ebe1c8", "#c85f14", "#a8d060"];
+
+// ---------- pan / zoom canvas view with pinch guard ----------
+function makeView(wrap, canvas, w, h, onTool, onHover){
+  const v = { zoom: 24, ox: 0, oy: 0, w, h, pointers: new Map(), pinch: null, drawing: null };
+  const ctx = canvas.getContext("2d");
+  function size(){ const r = wrap.getBoundingClientRect(); canvas.width = Math.max(1, r.width|0); canvas.height = Math.max(1, r.height|0); }
+  v.fit = () => { size(); const z = Math.min(canvas.width / v.w, canvas.height / v.h) * 0.85; v.zoom = z >= 2 ? Math.floor(z) : Math.max(0.5, z);
+    v.ox = (canvas.width - v.w * v.zoom) / 2; v.oy = (canvas.height - v.h * v.zoom) / 2; };
+  v.toPx = (cx, cy) => [(cx - v.ox) / v.zoom, (cy - v.oy) / v.zoom];
+  v.ctx = ctx; v.canvas = canvas; v.size = size;
+  const local = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  wrap.addEventListener("contextmenu", e => e.preventDefault());
+  wrap.addEventListener("wheel", e => { e.preventDefault(); const [cx, cy] = local(e);
+    if (e.ctrlKey && onTool.wheel) { onTool.wheel(e.deltaY); return; }
+    const f = e.deltaY < 0 ? 1.15 : 1/1.15, nz = clamp(v.zoom * f, 0.5, 80);
+    v.ox = cx - (cx - v.ox) * nz / v.zoom; v.oy = cy - (cy - v.oy) * nz / v.zoom; v.zoom = nz; v.redraw(); }, { passive: false });
+  wrap.addEventListener("pointerdown", e => {
+    // a third finger, or a stray touch while pinching, must not hijack the gesture
+    if (v.pinch || v.pointers.size >= 2) { e.preventDefault(); return; }
+    wrap.setPointerCapture(e.pointerId);
+    v.pointers.set(e.pointerId, local(e));
+    if (v.pointers.size === 2) { // start pinch; cancel any stroke that the first finger started
+      if (v.drawing && onTool.cancel) onTool.cancel(); v.drawing = null;
+      const [a, b] = [...v.pointers.values()];
+      v.pinch = { d: Math.hypot(a[0]-b[0], a[1]-b[1]), cx: (a[0]+b[0])/2, cy: (a[1]+b[1])/2, zoom: v.zoom, ox: v.ox, oy: v.oy };
+      return; }
+    const [cx, cy] = local(e);
+    if (e.button === 1 || e.button === 2) { v.drawing = { pan: true, sx: cx, sy: cy, ox: v.ox, oy: v.oy }; return; }
+    v.drawing = { pan: false, id: e.pointerId };
+    onTool.down(...v.toPx(cx, cy), e);
+  });
+  wrap.addEventListener("pointermove", e => {
+    const [cx, cy] = local(e);
+    onHover(...v.toPx(cx, cy));
+    if (!v.pointers.has(e.pointerId)) return;
+    v.pointers.set(e.pointerId, [cx, cy]);
+    if (v.pinch && v.pointers.size === 2) {
+      const [a, b] = [...v.pointers.values()], d = Math.hypot(a[0]-b[0], a[1]-b[1]);
+      const mx = (a[0]+b[0])/2, my = (a[1]+b[1])/2, nz = clamp(v.pinch.zoom * d / v.pinch.d, 1, 80);
+      v.zoom = nz; v.ox = mx - (v.pinch.cx - v.pinch.ox) * nz / v.pinch.zoom; v.oy = my - (v.pinch.cy - v.pinch.oy) * nz / v.pinch.zoom; v.redraw(); return; }
+    if (!v.drawing) return;
+    if (v.drawing.pan) { v.ox = v.drawing.ox + cx - v.drawing.sx; v.oy = v.drawing.oy + cy - v.drawing.sy; v.redraw(); return; }
+    if (v.drawing.id === e.pointerId) onTool.move(...v.toPx(cx, cy), e);
+  });
+  const end = e => { if (!v.pointers.has(e.pointerId)) return; v.pointers.delete(e.pointerId);
+    if (v.pinch) { if (v.pointers.size === 0) v.pinch = null; return; }
+    if (v.drawing && !v.drawing.pan && onTool.up) onTool.up(); v.drawing = null; };
+  wrap.addEventListener("pointerup", end); wrap.addEventListener("pointercancel", end);
+  new ResizeObserver(() => { const keep = canvas.width > 1; size(); if (!keep) v.fit(); v.redraw && v.redraw(); }).observe(wrap);
+  return v;
+}
+
+// ---------- slider + number pairs ----------
+function bindNumbers(state, ids, onChange){
+  ids.forEach(([id, key]) => {
+    const r = $("#"+id), n = $(`input[data-for="${id}"]`);
+    const set = val => { r.value = val; if (n) n.value = val; };
+    set(state[key]);
+    r.addEventListener("input", () => { state[key] = +r.value; if (n) n.value = r.value; onChange(key); });
+    if (n) n.addEventListener("change", () => { const v = clamp(+n.value, +r.min, +r.max); state[key] = v; set(v); onChange(key); });
+    state["__set_"+key] = set;
+  });
+}
+function slotPicker(container, picker, colors, getSel, setSel, onChange){
+  function draw(){ container.innerHTML = ""; colors.forEach((c, i) => { const s = document.createElement("button");
+    s.className = "slot inset" + (i === getSel() ? " sel" : ""); s.title = c; s.setAttribute("aria-label", "colour " + c);
+    s.innerHTML = `<i style="background:${c}"></i>`; s.onclick = () => { setSel(i); picker.value = colors[i]; draw(); }; container.appendChild(s); }); }
+  picker.value = colors[getSel()];
+  picker.addEventListener("input", () => { colors[getSel()] = picker.value; draw(); onChange(); });
+  draw(); return draw;
+}
+
+// ---------- shared, rebindable shortcuts (Paint.net defaults) ----------
+const KB = {
+  labels: { "tool.move": "Move tool", "tool.pencil": "Pencil", "tool.eraser": "Eraser", "tool.picker": "Colour picker", "tool.lasso": "Lasso",
+    "tool.maskbrush": "Mask brush", "edit.undo": "Undo", "edit.redo": "Redo", "edit.redo2": "Redo (alt)", "layer.add": "Add layer",
+    "layer.dup": "Duplicate layer", "layer.del": "Delete layer", "layer.up": "Move layer up", "layer.down": "Move layer down",
+    "mask.all": "Mask: show all", "mask.none": "Mask: hide all", "mask.invert": "Invert mask", "mask.swap": "Swap add/remove keys",
+    "view.fit": "Zoom to window", "view.in": "Zoom in", "view.out": "Zoom out", "play.toggle": "Play / pause (soup)", "file.save": "Save" },
+  PDN: { "tool.move": "M", "tool.pencil": "P", "tool.eraser": "E", "tool.picker": "K", "tool.lasso": "S", "tool.maskbrush": "Q",
+    "edit.undo": "Ctrl+Z", "edit.redo": "Ctrl+Y", "edit.redo2": "Ctrl+Shift+Z", "layer.add": "Ctrl+Shift+N", "layer.dup": "Ctrl+Shift+D",
+    "layer.del": "Ctrl+Shift+Delete", "layer.up": "Alt+PageUp", "layer.down": "Alt+PageDown", "mask.all": "Ctrl+A", "mask.none": "Ctrl+D",
+    "mask.invert": "Ctrl+I", "mask.swap": "X", "view.fit": "Ctrl+B", "view.in": "Ctrl+=", "view.out": "Ctrl+-", "play.toggle": "Space", "file.save": "Ctrl+S" },
+  tabs: {}, capturing: null, swap: load("modSwap", false), listeners: [],
+};
+KB.keys = Object.assign({}, KB.PDN, load("bucketKeys", {}));
+function comboOf(e){ const k = e.key === " " ? "Space" : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  if (["Control","Shift","Alt","Meta"].includes(k)) return null;
+  return (e.ctrlKey || e.metaKey ? "Ctrl+" : "") + (e.altKey ? "Alt+" : "") + (e.shiftKey ? "Shift+" : "") + (k === "+" ? "=" : k === "_" ? "-" : k); }
+const kbMaskOp = e => ((!!e.shiftKey) !== KB.swap) ? "add" : "remove";
+function kbDraw(){
+  $$(".keysBox").forEach(box => { box.innerHTML = "";
+    for (const id in KB.labels) { const r = document.createElement("div"); r.className = "keyrow"; const k = KB.keys[id];
+      const clash = k && Object.keys(KB.keys).some(o => o !== id && KB.keys[o] === k);
+      r.innerHTML = `<span>${KB.labels[id]}</span><button class="mc keybtn${clash ? " warn" : ""}" title="${clash ? "Also used by another action" : "Click to rebind"}">${KB.capturing === id ? "press keys…" : (k || "–")}</button>`;
+      r.querySelector("button").onclick = () => { KB.capturing = id; kbDraw(); }; box.appendChild(r); } });
+  KB.listeners.forEach(f => f());
+}
+function kbSetSwap(v){ KB.swap = v; store("modSwap", v);
+  $$(".modSwapBtn").forEach(b => { b.setAttribute("aria-pressed", v); b.textContent = v ? "Shift = remove" : "Shift = add"; }); kbDraw(); }
+function kbInit(){
+  $$(".keysReset").forEach(b => b.onclick = () => { KB.keys = Object.assign({}, KB.PDN); store("bucketKeys", KB.keys); kbDraw(); toast("Shortcuts reset"); });
+  $$(".modSwapBtn").forEach(b => b.onclick = () => kbSetSwap(!KB.swap));
+  window.addEventListener("keydown", e => {
+    if (KB.capturing) { e.preventDefault();
+      if (e.key === "Escape") { KB.capturing = null; return kbDraw(); }
+      if (e.key === "Backspace") { KB.keys[KB.capturing] = ""; KB.capturing = null; store("bucketKeys", KB.keys); return kbDraw(); }
+      const c = comboOf(e); if (!c) return; KB.keys[KB.capturing] = c; KB.capturing = null; store("bucketKeys", KB.keys); return kbDraw(); }
+    if (!$("#saveBack").hidden) { if (e.key === "Escape") $("#svCancel").click(); else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); $("#svGo").click(); } return; }
+    if (comboOf(e) === KB.keys["file.save"]) { e.preventDefault(); const t = $(".view.on").id.replace("v-", ""); KB.tabs[t] && KB.tabs[t]["file.save"] && KB.tabs[t]["file.save"](); return; }
+    if (e.target.matches("input[type=text],input[type=number],select")) return;
+    const tab = ($(".view.on") || {}).id.replace("v-", ""), acts = KB.tabs[tab]; if (!acts) return;
+    const c = comboOf(e); if (!c) return;
+    const id = Object.keys(KB.keys).find(k => KB.keys[k] === c);
+    if (id && acts[id]) { e.preventDefault(); acts[id](); return; }
+    if (acts.__fallback) acts.__fallback(e);
+  });
+  kbSetSwap(KB.swap);
+}
+
+let IMG = {};
+(async function boot(){
+  try {
+    for (const k in SRC) IMG[k] = imgData(await loadImage(SRC[k]));
+  } catch (e) {
+    const b = $("#errBanner"); b.style.display = "block"; b.textContent = "Couldn't load the built-in textures, so the editor can't start. Try reopening the file.";
+    return;
+  }
+  initTabs(); initBucket(); initFluid(); initFx(); initOverlay(); kbInit();
+})();
+
+function initTabs(){
+  $$(".tab").forEach(t => t.onclick = () => {
+    $$(".tab").forEach(x => x.setAttribute("aria-selected", x === t)); $$(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + t.dataset.tab));
+    store("tab", t.dataset.tab); window.dispatchEvent(new Event("resize")); });
+  const t = load("tab", "bucket"); const btn = $(`.tab[data-tab="${t}"]`); if (btn) btn.click();
+}
+
+// =====================================================================
+// BUCKET OVERLAY
+// =====================================================================
+function initBucket(){
+  const base = IMG.bucket, wat = IMG.water_bucket;
+  const DEF_T = { tx: 18.5, ty: -0.9, scale: 1, rot: 0, skew: 0, flip: false };
+  const S = Object.assign({}, DEF_T, { broth: "#94683a", shade: 0.85, grain: 0.12, bits: 0.22, seed: 7, colors: BIT_DEFAULTS.slice(), sel: 0 }, load("bucket2", {}));
+  let showMask = true;
+
+  // ---- water opening mask + shading from the vanilla buckets ----
+  const waterLum = new Array(256).fill(0), soupMask = [];
+  let lo = 999, hi = 0;
+  for (let i = 0; i < 256; i++) { const d = i*4;
+    const same = base.data[d]===wat.data[d] && base.data[d+1]===wat.data[d+1] && base.data[d+2]===wat.data[d+2] && base.data[d+3]===wat.data[d+3];
+    soupMask[i] = !same; const L = wat.data[d] + wat.data[d+1] + wat.data[d+2]; waterLum[i] = L; if (!same) { lo = Math.min(lo, L); hi = Math.max(hi, L); } }
+
+  // ---- layers (index 0 = bottom). Pattern layer = procedural soup; paint layers = pixels ----
+  let uid = 1;
+  const newPaint = name => ({ id: uid++, type: "paint", name, visible: true, opacity: 1, px: {}, mask: null });
+  let layers = load("bucketLayers", null), active;
+  if (!layers) {
+    layers = [{ id: uid++, type: "pattern", name: "Soup pattern", visible: true, opacity: 1, px: {}, mask: soupMask.slice() }, newPaint("Paint 1")];
+    // carry over anything painted in the previous version
+    const oldPaint = load("bucketPaint", null), oldMask = load("bucketMask", null);
+    if (oldMask) layers[0].mask = oldMask;
+    if (oldPaint) for (const k in oldPaint) { if (oldPaint[k] === "hole") layers[0].mask[k] = false; else layers[1].px[k] = oldPaint[k]; }
+    active = layers.length - 1;
+  } else { uid = Math.max(...layers.map(l => l.id)) + 1; active = clamp(load("bucketActive", layers.length - 1), 0, layers.length - 1); }
+  const L = () => layers[active];
+
+  // ---- undo / redo ----
+  const undo = [], redo = [];
+  const state = () => JSON.stringify({ T: { tx:S.tx, ty:S.ty, scale:S.scale, rot:S.rot, skew:S.skew, flip:S.flip }, layers, active });
+  const snap = () => { undo.push(state()); if (undo.length > 80) undo.shift(); redo.length = 0; };
+  function restore(json){ const o = JSON.parse(json); Object.assign(S, o.T); layers = o.layers; active = o.active;
+    ["tx","ty","scale","rot","skew"].forEach(k => S["__set_"+k](S[k])); $("#bFlip").checked = S.flip; drawLayers(); render(); persist(); }
+  const doUndo = () => { if (!undo.length) return toast("Nothing to undo"); redo.push(state()); restore(undo.pop()); };
+  const doRedo = () => { if (!redo.length) return toast("Nothing to redo"); undo.push(state()); restore(redo.pop()); };
+
+  // ---- pattern on a plane ----
+  function patternAt(u, v){
+    const iu = Math.floor(u), iv = Math.floor(v);
+    if (hash(iu, iv, 1, S.seed) < S.bits) return { rgb: hex2rgb(S.colors[Math.floor(hash(iu, iv, 2, S.seed) * S.colors.length)]), bit: true };
+    const g = (hash(iu, iv, 3, S.seed) - 0.5) * 2 * S.grain;
+    return { rgb: hex2rgb(S.broth).map(x => x * (1 + g)), bit: false };
+  }
+  function planeToTex(u, v){
+    const a = S.rot * Math.PI / 180, k = Math.tan(S.skew * Math.PI / 180), s = S.scale;
+    let x = (u + k * v) * s, y = v * s; if (S.flip) x = -x;
+    return [x * Math.cos(a) - y * Math.sin(a) + 8 + S.tx, x * Math.sin(a) + y * Math.cos(a) + 8 + S.ty];
+  }
+  function texToPlane(px, py){
+    const a = -S.rot * Math.PI / 180, k = Math.tan(S.skew * Math.PI / 180), s = S.scale;
+    const dx = px - 8 - S.tx, dy = py - 8 - S.ty;
+    let x = dx * Math.cos(a) - dy * Math.sin(a), y = dx * Math.sin(a) + dy * Math.cos(a);
+    if (S.flip) x = -x; x /= s; y /= s; return [x - k * y, y];
+  }
+  function layerPixel(l, i){ // returns [r,g,b,a] before mask
+    if (l.type === "paint") { const p = l.px[i]; if (!p) return null; const c = hex2rgb(p); return [c[0], c[1], c[2], 255]; }
+    const x = i % 16, y = (i / 16) | 0, [u, v] = texToPlane(x + 0.5, y + 0.5), pt = patternAt(u, v);
+    let k = 1; if (!pt.bit && hi > lo) k = 1 + S.shade * (clamp(soupMask[i] ? (waterLum[i] - lo) / (hi - lo) : 0.5, 0, 1) - 0.5) * 0.9;
+    return [pt.rgb[0]*k, pt.rgb[1]*k, pt.rgb[2]*k, 255];
+  }
+  function renderOverlay(){
+    const out = new ImageData(16, 16), acc = new Float32Array(256*4);
+    layers.forEach(l => { if (!l.visible) return;
+      for (let i = 0; i < 256; i++) { if (l.mask && !l.mask[i]) continue; const p = layerPixel(l, i); if (!p) continue;
+        const a = (p[3] / 255) * l.opacity, d = i*4, ia = acc[d+3];
+        const oa = a + ia * (1 - a); if (oa <= 0) continue;
+        for (let c = 0; c < 3; c++) acc[d+c] = (p[c]*a + acc[d+c]*ia*(1-a)) / oa;
+        acc[d+3] = oa; } });
+    for (let i = 0; i < 1024; i++) out.data[i] = clamp(Math.round(i % 4 === 3 ? acc[i] * 255 : acc[i]), 0, 255);
+    return out;
+  }
+
+  const ovc = document.createElement("canvas"); ovc.width = ovc.height = 16;
+  const basec = document.createElement("canvas"); basec.width = basec.height = 16; basec.getContext("2d").putImageData(base, 0, 0);
+  const comp = document.createElement("canvas"); comp.width = comp.height = 16;
+  let tool = "move", hover = null, lasso = null;
+
+  // ---- mask op from modifiers: no key / Ctrl = remove, Shift = add (swappable) ----
+  const maskOp = kbMaskOp;
+  function ensureMask(l){ if (!l.mask) l.mask = new Array(256).fill(true); }
+  function inPoly(pts, x, y){ let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; } return c; }
+
+  const toolObj = {
+    down(px, py, e){ snap(); this.last = [px, py]; this.start = { tx: S.tx, ty: S.ty }; this.shift = e.shiftKey; this.op = maskOp(e);
+      if (tool === "lasso") { lasso = { pts: [[px, py]], op: this.op }; drawView(); return; }
+      this.apply(px, py); },
+    move(px, py){ if (tool === "lasso" && lasso) { const l = lasso.pts[lasso.pts.length - 1];
+        if (Math.hypot(px - l[0], py - l[1]) > 0.15) lasso.pts.push([px, py]); drawView(); return; } this.apply(px, py); },
+    up(){ if (tool === "lasso" && lasso) { const l = L(); ensureMask(l); let n = 0;
+        if (lasso.pts.length > 2) for (let i = 0; i < 256; i++) if (inPoly(lasso.pts, (i % 16) + 0.5, ((i / 16) | 0) + 0.5)) { l.mask[i] = lasso.op === "add"; n++; }
+        lasso = null; if (!n) undo.pop(); else toast((this.op === "add" ? "Added " : "Removed ") + n + " px of mask"); drawLayers(); render(); }
+      persist(); },
+    cancel(){ lasso = null; const u = undo.pop(); if (u) restore(u); },
+    wheel(dy){ snap(); S.scale = clamp(S.scale * (dy < 0 ? 1.06 : 1/1.06), 0.25, 4); S.__set_scale(+S.scale.toFixed(2)); render(); persist(); },
+    apply(px, py){
+      const ix = Math.floor(px), iy = Math.floor(py), i = iy*16 + ix, inside = ix >= 0 && iy >= 0 && ix < 16 && iy < 16, l = L();
+      if (tool === "move") {
+        if (this.shift) { const a0 = Math.atan2(this.last[1]-8-S.ty, this.last[0]-8-S.tx), a1 = Math.atan2(py-8-S.ty, px-8-S.tx);
+          S.rot = Math.round(((S.rot + (a1 - a0) * 180 / Math.PI) + 540) % 360 - 180); S.__set_rot(S.rot); this.last = [px, py]; }
+        else { S.tx = +clamp(this.start.tx + px - this.last[0], -32, 32).toFixed(2); S.ty = +clamp(this.start.ty + py - this.last[1], -32, 32).toFixed(2);
+          S.__set_tx(S.tx); S.__set_ty(S.ty); }
+      } else if (!inside) return;
+      else if (tool === "paint") { if (l.type !== "paint") { if (!this.warned) toast("Pencil works on paint layers. Pick or add one."); this.warned = true; return; } l.px[i] = S.colors[S.sel]; }
+      else if (tool === "erase") { if (l.type === "paint") delete l.px[i]; else { ensureMask(l); l.mask[i] = false; } }
+      else if (tool === "maskbrush") { ensureMask(l); l.mask[i] = this.op === "add"; }
+      else if (tool === "picker") { const d = comp.getContext("2d").getImageData(ix, iy, 1, 1).data; if (d[3]) { S.colors[S.sel] = rgb2hex([d[0], d[1], d[2]]); drawSlots(); $("#bPick").value = S.colors[S.sel]; } }
+      render();
+    }
+  };
+  const view = makeView($("#bWrap"), $("#bCanvas"), 16, 16, toolObj,
+    (px, py) => { hover = [Math.floor(px), Math.floor(py)]; $("#stPx").textContent = (hover[0]>=0&&hover[1]>=0&&hover[0]<16&&hover[1]<16) ? hover.join(", ") : "–"; drawView(); });
+  $("#bWrap").addEventListener("pointerdown", () => { toolObj.warned = false; }, true);
+
+  function drawView(){
+    const { ctx, canvas, zoom, ox, oy } = view;
+    ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { ctx.fillStyle = (x + y) % 2 ? "#9a9a9a" : "#a9a9a9"; ctx.fillRect(ox + x*zoom, oy + y*zoom, zoom, zoom); }
+    ctx.drawImage(comp, ox, oy, 16*zoom, 16*zoom);
+    const l = L(), maskTools = tool === "lasso" || tool === "maskbrush";
+    if (l.mask && (showMask || maskTools)) {
+      if (maskTools) { ctx.fillStyle = "rgba(200,40,40,.35)"; for (let i = 0; i < 256; i++) if (!l.mask[i]) ctx.fillRect(ox + (i%16)*zoom, oy + ((i/16)|0)*zoom, zoom, zoom); }
+      ctx.strokeStyle = "rgba(242,179,61,.95)"; ctx.lineWidth = Math.max(1, zoom/12); const m = l.mask;
+      for (let i = 0; i < 256; i++) if (m[i]) { const x = i%16, y = (i/16)|0;
+        if (y===0 || !m[i-16]) line(x,y,x+1,y); if (y===15 || !m[i+16]) line(x,y+1,x+1,y+1);
+        if (x===0 || !m[i-1]) line(x,y,x,y+1); if (x===15 || !m[i+1]) line(x+1,y,x+1,y+1); } }
+    if (zoom >= 8) { ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 1; ctx.beginPath();
+      for (let k = 0; k <= 16; k++) { ctx.moveTo(ox + k*zoom + .5, oy); ctx.lineTo(ox + k*zoom + .5, oy + 16*zoom); ctx.moveTo(ox, oy + k*zoom + .5); ctx.lineTo(ox + 16*zoom, oy + k*zoom + .5); } ctx.stroke(); }
+    if (tool === "move" && l.type === "pattern") { ctx.strokeStyle = "#3a6fd0"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath();
+      [[-8,-8],[8,-8],[8,8],[-8,8]].map(([u,v]) => planeToTex(u, v)).forEach(([x,y], k) => k ? ctx.lineTo(ox + x*zoom, oy + y*zoom) : ctx.moveTo(ox + x*zoom, oy + y*zoom));
+      ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); const [cx, cy] = planeToTex(0, 0); ctx.fillStyle = "#3a6fd0"; ctx.fillRect(ox + cx*zoom - 4, oy + cy*zoom - 4, 8, 8); }
+    if (lasso) { ctx.strokeStyle = lasso.op === "add" ? "#7cd14a" : "#ff5a4a"; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.beginPath();
+      lasso.pts.forEach(([x, y], k) => k ? ctx.lineTo(ox + x*zoom, oy + y*zoom) : ctx.moveTo(ox + x*zoom, oy + y*zoom)); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
+    if (hover && hover[0]>=0 && hover[1]>=0 && hover[0]<16 && hover[1]<16 && tool !== "move" && tool !== "lasso") { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(ox + hover[0]*zoom + 1, oy + hover[1]*zoom + 1, zoom - 2, zoom - 2); }
+    $("#stZoom").textContent = Math.round(zoom) + "×";
+    function line(a,b,c,d){ ctx.beginPath(); ctx.moveTo(ox + a*zoom, oy + b*zoom); ctx.lineTo(ox + c*zoom, oy + d*zoom); ctx.stroke(); }
+  }
+  view.redraw = drawView;
+
+  function render(){
+    ovc.getContext("2d").putImageData(renderOverlay(), 0, 0);
+    const c = comp.getContext("2d"); c.clearRect(0,0,16,16); c.drawImage(basec, 0, 0); c.drawImage(ovc, 0, 0);
+    ["#pvB1","#pvB2","#pvB3"].forEach(s => { const x = $(s).getContext("2d"); x.clearRect(0,0,16,16); x.drawImage(comp,0,0); });
+    drawView();
+  }
+  function persist(){ const { colors, sel, tx, ty, scale, rot, skew, flip, broth, shade, grain, bits, seed } = S;
+    store("bucket2", { colors, sel, tx, ty, scale, rot, skew, flip, broth, shade, grain, bits, seed }); store("bucketLayers", layers); store("bucketActive", active); }
+
+  // ---- layers panel ----
+  function drawLayers(){
+    const box = $("#bLayers"); box.innerHTML = "";
+    layers.slice().reverse().forEach(l => { const idx = layers.indexOf(l);
+      const row = document.createElement("div"); row.className = "layer" + (idx === active ? " on" : "");
+      row.innerHTML = `<label class="eye" title="Show / hide"><input type="checkbox" ${l.visible ? "checked" : ""}></label>
+        <button class="lname">${l.name.replace(/</g, "&lt;")}<small>${l.type === "pattern" ? "pattern" : Object.keys(l.px).length + " px"}${l.mask ? " · mask" : ""}</small></button>`;
+      row.querySelector("input").onchange = e => { snap(); l.visible = e.target.checked; render(); persist(); };
+      row.querySelector(".lname").onclick = () => { active = idx; drawLayers(); drawView(); persist(); };
+      box.appendChild(row); });
+    const l = L(); $("#bLayName").value = l.name; $("#bLayOpa").value = l.opacity; $("#bLayOpaN").value = l.opacity;
+    $("#bMaskToggle").textContent = l.mask ? "Remove mask" : "Add mask";
+    $("#bLayDel").disabled = l.type === "pattern"; $("#bLayDel").style.opacity = l.type === "pattern" ? .5 : 1;
+    $("#bPatternBox").style.opacity = l.type === "pattern" ? 1 : .6;
+  }
+  const actions = {
+    "tool.move": ["Move tool", () => setTool("move")], "tool.pencil": ["Pencil", () => setTool("paint")], "tool.eraser": ["Eraser", () => setTool("erase")],
+    "tool.picker": ["Colour picker", () => setTool("picker")], "tool.lasso": ["Lasso", () => setTool("lasso")], "tool.maskbrush": ["Mask brush", () => setTool("maskbrush")],
+    "edit.undo": ["Undo", doUndo], "edit.redo": ["Redo", doRedo], "edit.redo2": ["Redo (alt)", doRedo],
+    "layer.add": ["Add layer", () => addLayer()], "layer.dup": ["Duplicate layer", () => dupLayer()], "layer.del": ["Delete layer", () => askDelete()],
+    "layer.up": ["Move layer up", () => moveLayer(1)], "layer.down": ["Move layer down", () => moveLayer(-1)],
+    "mask.all": ["Mask: show all", () => maskFill(true)], "mask.none": ["Mask: hide all", () => maskFill(false)], "mask.invert": ["Invert mask", () => maskInvert()],
+    "mask.swap": ["Swap add/remove keys", () => kbSetSwap(!KB.swap)],
+    "view.fit": ["Zoom to window", () => { view.fit(); drawView(); }], "view.in": ["Zoom in", () => zoomBy(1.25)], "view.out": ["Zoom out", () => zoomBy(0.8)],
+  };
+  KB.tabs.bucket = Object.fromEntries(Object.entries(actions).map(([k, v]) => [k, v[1]]));
+  KB.tabs.bucket["file.save"] = () => $("#bExport").click();
+  KB.listeners.push(() => { $("#bHint").innerHTML = `${KB.keys["tool.lasso"] || "–"} lasso · ${KB.keys["tool.maskbrush"] || "–"} mask brush — <b>${KB.swap ? "Shift removes, no key / Ctrl adds" : "Shift adds, no key / Ctrl removes"}</b> mask`; });
+
+  function addLayer(){ snap(); layers.splice(active + 1, 0, newPaint("Paint " + (layers.filter(l => l.type === "paint").length + 1))); active++; drawLayers(); render(); persist(); }
+  function dupLayer(){ snap(); const c = JSON.parse(JSON.stringify(L())); c.id = uid++; c.name = (c.name + " copy").slice(0, 24); if (c.type === "pattern") c.type = "paint", c.px = bakePattern(L());
+    layers.splice(active + 1, 0, c); active++; drawLayers(); render(); persist(); }
+  function bakePattern(l){ const px = {}; for (let i = 0; i < 256; i++) { const p = layerPixel(l, i); if (p) px[i] = rgb2hex(p); } return px; }
+  function askDelete(){ if (L().type === "pattern") return toast("The pattern layer can't be deleted. Hide it instead."); $("#bDelConfirm").classList.add("on"); }
+  $("#bDelNo").onclick = () => $("#bDelConfirm").classList.remove("on");
+  $("#bDelYes").onclick = () => { snap(); layers.splice(active, 1); active = clamp(active - 1, 0, layers.length - 1); $("#bDelConfirm").classList.remove("on"); drawLayers(); render(); persist(); toast("Layer deleted (Undo brings it back)"); };
+  function moveLayer(d){ const j = active + d; if (j < 0 || j >= layers.length) return; snap(); [layers[active], layers[j]] = [layers[j], layers[active]]; active = j; drawLayers(); render(); persist(); }
+  function maskFill(v){ snap(); const l = L(); ensureMask(l); l.mask.fill(v); drawLayers(); render(); persist(); }
+  function maskInvert(){ snap(); const l = L(); ensureMask(l); l.mask = l.mask.map(v => !v); drawLayers(); render(); persist(); }
+  function zoomBy(f){ const c = view.canvas, cx = c.width/2, cy = c.height/2, nz = clamp(view.zoom * f, 1, 80);
+    view.ox = cx - (cx - view.ox) * nz / view.zoom; view.oy = cy - (cy - view.oy) * nz / view.zoom; view.zoom = nz; drawView(); }
+
+  $("#bLayAdd").onclick = addLayer; $("#bLayDup").onclick = dupLayer; $("#bLayDel").onclick = askDelete;
+  $("#bLayUp").onclick = () => moveLayer(1); $("#bLayDown").onclick = () => moveLayer(-1);
+  $("#bLayName").onchange = e => { snap(); L().name = e.target.value.trim() || L().name; drawLayers(); persist(); };
+  const setOpa = v => { L().opacity = clamp(+v, 0, 1); $("#bLayOpa").value = L().opacity; $("#bLayOpaN").value = L().opacity; render(); persist(); };
+  $("#bLayOpa").onpointerdown = () => snap(); $("#bLayOpa").oninput = e => setOpa(e.target.value); $("#bLayOpaN").onchange = e => { snap(); setOpa(e.target.value); };
+  $("#bMaskToggle").onclick = () => { snap(); const l = L(); l.mask = l.mask ? null : new Array(256).fill(true); drawLayers(); render(); persist(); };
+  $("#bMaskInvert").onclick = maskInvert;
+  $("#bMaskShow").onclick = () => { showMask = !showMask; $("#bMaskShow").setAttribute("aria-pressed", showMask); drawView(); };
+
+  $("#pvWater").getContext("2d").putImageData(wat, 0, 0);
+  bindNumbers(S, [["bTx","tx"],["bTy","ty"],["bScale","scale"],["bRot","rot"],["bSkew","skew"],["bShade","shade"],["bGrain","grain"],["bBits","bits"],["bSeed","seed"]],
+    () => { render(); persist(); });
+  $("#bFlip").checked = S.flip; $("#bFlip").onchange = e => { snap(); S.flip = e.target.checked; render(); persist(); };
+  $("#bBroth").value = S.broth; $("#bBroth").oninput = e => { S.broth = e.target.value; render(); persist(); };
+  const drawSlots = slotPicker($("#bSlots"), $("#bPick"), S.colors, () => S.sel, i => { S.sel = i; persist(); }, () => { render(); persist(); });
+  $("#bResetT").onclick = () => { snap(); Object.assign(S, DEF_T); ["tx","ty","scale","rot","skew"].forEach(k => S["__set_"+k](S[k])); $("#bFlip").checked = false; render(); persist(); };
+  const NAMES = { move: "move", paint: "pencil", erase: "eraser", picker: "picker", lasso: "lasso", maskbrush: "mask brush" };
+  function setTool(t){ tool = t; $$("[data-btool]").forEach(b => b.setAttribute("aria-pressed", b.dataset.btool === t)); $("#stTool").textContent = NAMES[t]; drawView(); }
+  $$("[data-btool]").forEach(b => b.onclick = () => setTool(b.dataset.btool));
+  $("#bZoomFit").onclick = () => { view.fit(); drawView(); };
+  $("#bUndo").onclick = doUndo; $("#bRedo").onclick = doRedo;
+  $("#bExport").onclick = () => download(ovc, "ocean_soup_bucket.png");
+  $("#bImport").onclick = () => $("#bFile").click();
+  $("#bOldLayer").onclick = () => { snap(); const d = IMG.old_overlay.data, l = newPaint("Old overlay v1");
+    for (let i = 0; i < 256; i++) if (d[i*4+3] > 0) l.px[i] = rgb2hex([d[i*4], d[i*4+1], d[i*4+2]]);
+    layers.splice(active + 1, 0, l); active++; drawLayers(); render(); persist(); toast("Old overlay added as a layer. Hide the pattern layer to see only it."); };
+  $("#bFile").onchange = async e => { const f = e.target.files[0]; if (!f) return; e.target.value = "";
+    try { const img = await loadImage(URL.createObjectURL(f)); if (img.width !== 16 || img.height !== 16) { toast("Needs a 16×16 PNG"); return; }
+      snap(); const d = imgData(img).data, l = newPaint(f.name.replace(/\.png$/i, "").slice(0, 24));
+      for (let i = 0; i < 256; i++) if (d[i*4+3] > 0) l.px[i] = rgb2hex([d[i*4], d[i*4+1], d[i*4+2]]);
+      layers.splice(active + 1, 0, l); active++; drawLayers(); render(); persist(); toast("Loaded as a new layer"); } catch (err) { toast("Couldn't read that PNG"); } };
+
+  KB.tabs.bucket.__fallback = e => {
+    if (tool === "move" && L().type === "pattern" && e.key.startsWith("Arrow")) { e.preventDefault(); snap(); const st = e.shiftKey ? 1 : 0.05;
+      if (e.key === "ArrowLeft") S.tx -= st; if (e.key === "ArrowRight") S.tx += st; if (e.key === "ArrowUp") S.ty -= st; if (e.key === "ArrowDown") S.ty += st;
+      S.tx = +S.tx.toFixed(2); S.ty = +S.ty.toFixed(2); S.__set_tx(S.tx); S.__set_ty(S.ty); render(); persist(); } };
+  const BDEF = { broth: "#94683a", shade: 0.85, grain: 0.12, bits: 0.22, seed: 7 };
+  $("#bReset").onclick = () => $("#bResetConfirm").classList.add("on");
+  $("#bResetNo").onclick = () => $("#bResetConfirm").classList.remove("on");
+  $("#bResetYes").onclick = () => { snap(); Object.assign(S, DEF_T, BDEF); S.colors.splice(0, S.colors.length, ...BIT_DEFAULTS);
+    ["tx","ty","scale","rot","skew","shade","grain","bits","seed"].forEach(k => S["__set_"+k](S[k])); $("#bFlip").checked = false; $("#bBroth").value = S.broth;
+    drawSlots(); $("#bPick").value = S.colors[S.sel]; $("#bResetConfirm").classList.remove("on"); render(); persist(); toast("Values reset (Undo brings the transform back)"); };
+
+  drawLayers(); view.fit(); setTool("move"); render();
+}
+
+// =====================================================================
+// SOUP FLUID
+// =====================================================================
+function initFluid(){
+  const sheets = { still: { img: IMG.water_still, old: IMG.old_still, s: 16 }, flow: { img: IMG.water_flow, old: IMG.old_flow, s: 32 } };
+  for (const k in sheets) sheets[k].frames = sheets[k].img.height / sheets[k].s;
+  const DEF = { broth: "#b07c42", bright: 0.02, contrast: 1.5, grain: 0.2, grainSize: 1, grainAnim: false, alpha: 215,
+    count: 30, big: 0.45, ox: 0, oy: 0, scale: 1, rot: 0, speed: 1, seed: 4, colors: BIT_DEFAULTS.slice(0, 4), sel: 0, tilt: 62, spin: 20 };
+  const S = Object.assign(JSON.parse(JSON.stringify(DEF)), load("fluid", {}));
+  delete S.source;
+  let sheet = load("fluidSheet", "still") === "flow" ? "flow" : "still", frame = 0, playing = true, tool = "move", showMask = true, lasso = null;
+
+  // ---- layers: broth (generated), bits (generated), paint, old (image). Paint/masks stored per sheet ----
+  let uid = 1;
+  const blankPer = () => ({ still: {}, flow: {} });
+  const mk = (type, name) => ({ id: uid++, type, name, visible: true, opacity: 1, px: blankPer(), mask: null, maskFlow: true });
+  let layers = load("fluidLayers", null), active;
+  if (!layers) {
+    layers = [mk("broth", "Broth"), mk("bits", "Generated bits"), mk("paint", "Hand bits")];
+    const old = load("fluidManual", null); // carry over bits placed with the earlier version
+    if (old) ["still","flow"].forEach(n => (old[n] || []).forEach(b => { const s = sheets[n].s; layers[2].px[n][(((b.y|0) % s + s) % s) * s + (((b.x|0) % s + s) % s)] = b.c; }));
+    active = 2;
+  } else { uid = Math.max(...layers.map(l => l.id)) + 1; active = clamp(load("fluidActive", layers.length - 1), 0, layers.length - 1); }
+  const L = () => layers[active];
+
+  const undo = [], redo = [];
+  const fstate = () => JSON.stringify({ layers, active, T: { ox: S.ox, oy: S.oy, rot: S.rot, scale: S.scale } });
+  const snap = () => { undo.push(fstate()); if (undo.length > 80) undo.shift(); redo.length = 0; };
+  function restore(json){ const o = JSON.parse(json); layers = o.layers; active = o.active; Object.assign(S, o.T);
+    ["ox","oy","rot","scale"].forEach(k => S["__set_"+k](S[k])); drawLayers(); dirty(); persist(); }
+  const doUndo = () => { if (!undo.length) return toast("Nothing to undo"); redo.push(fstate()); restore(undo.pop()); };
+  const doRedo = () => { if (!redo.length) return toast("Nothing to redo"); undo.push(fstate()); restore(redo.pop()); };
+
+  const drift = (name, f) => name === "flow" ? f * S.speed : 0;
+  const wrap = (v, s) => ((Math.floor(v) % s) + s) % s;
+  // index in a layer's stored (frame-0) space for a pixel shown at (x,y) in frame f
+  const storeIdx = (l, name, f, x, y) => { const s = sheets[name].s; return wrap(y - (l.maskFlow ? drift(name, f) : 0), s) * s + wrap(x, s); };
+
+  function genBits(size){
+    const r = rng(S.seed * 7919 + size), out = [], a = S.rot * Math.PI / 180, n = Math.round(S.count * (size*size) / 256);
+    for (let k = 0; k < n; k++) {
+      let u = r() - 0.5, v = r() - 0.5; const c = S.colors[Math.floor(r() * S.colors.length)], big = r() < S.big, dir = r() < 0.5;
+      u *= S.scale; v *= S.scale; const x = u * Math.cos(a) - v * Math.sin(a), y = u * Math.sin(a) + v * Math.cos(a);
+      out.push({ x: (x + 0.5 + S.ox) * size, y: (y + 0.5 + S.oy) * size, c, big, dir });
+    }
+    return out;
+  }
+  // one layer's pixels for frame f -> Float32 RGBA (0..255) or null
+  function layerFrame(l, name, f){
+    const sh = sheets[name], s = sh.s, out = new Float32Array(s*s*4), d0 = drift(name, f);
+    if (l.type === "broth") { const src = sh.img.data, br = hex2rgb(S.broth);
+      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+        const g = src[((f*s + y) * s + x) * 4] / 255; let v = (g - 0.65) * S.contrast + 0.65 + S.bright;
+        v += (hash(Math.floor(x / S.grainSize), Math.floor(wrap(y - d0, s) / S.grainSize), S.grainAnim ? f : 0, S.seed) - 0.5) * 2 * S.grain;
+        const d = (y*s + x) * 4; out[d] = br[0]*v*1.25; out[d+1] = br[1]*v*1.25; out[d+2] = br[2]*v*1.25; out[d+3] = S.alpha; } }
+    else if (l.type === "bits") { const put = (x, y, c) => { const d = (wrap(y + d0, s) * s + wrap(x, s)) * 4; out[d] = c[0]; out[d+1] = c[1]; out[d+2] = c[2]; out[d+3] = 255; };
+      genBits(s).forEach(b => { const c = hex2rgb(b.c); put(b.x, b.y, c); if (b.big) { const c2 = c.map(q => q*0.82); b.dir ? put(b.x + 1, b.y, c2) : put(b.x, b.y + 1, c2); } }); }
+    else if (l.type === "paint") { const px = l.px[name];
+      for (const k in px) { const i = +k, x = i % s, y = wrap(((i / s) | 0) + (l.maskFlow ? d0 : 0), s), d = (y*s + x) * 4, c = hex2rgb(px[k]);
+        out[d] = c[0]; out[d+1] = c[1]; out[d+2] = c[2]; out[d+3] = 255; } }
+    else if (l.type === "oldbroth") { const src = sh.img.data;
+      for (let i = 0; i < s*s; i++) { const g = src[f*s*s*4 + i*4] / 255, d = i*4;
+        out[d] = Math.min(255, Math.trunc(176*g*1.25)); out[d+1] = Math.min(255, Math.trunc(124*g*1.25)); out[d+2] = Math.min(255, Math.trunc(66*g*1.25)); out[d+3] = 215; } }
+    else if (l.type === "img") { const im = imgFor(l, name); if (!im) return out;
+      const fcount = Math.max(1, Math.floor(im.height / s)), off = (f % fcount) * s * s * 4; for (let i = 0; i < s*s*4; i++) out[i] = im.data[off + i]; }
+    else if (l.type === "old") { const src = sh.old.data, off = f*s*s*4; for (let i = 0; i < s*s*4; i++) out[i] = src[off + i]; }
+    return out;
+  }
+  const imgCache = {}, pending = {};
+  function imgFor(l, name){ const url = l.src && l.src[name]; if (!url) return null; const k = l.id + ":" + name + ":" + url.length;
+    if (imgCache[k] === undefined) { imgCache[k] = null;
+      pending[k] = loadImage(url).then(im => { imgCache[k] = imgData(im); delete pending[k]; dirty(); }).catch(() => { delete pending[k]; toast("Couldn't decode a loaded PNG"); }); }
+    return imgCache[k]; }
+  function preloadImgs(){ layers.forEach(l => { if (l.type === "img") { imgFor(l, "still"); imgFor(l, "flow"); } }); }
+  async function whenReady(){ preloadImgs(); const ps = Object.values(pending); if (ps.length) { await Promise.all(ps); cache = {}; } }
+  async function saveSheet(name){ await whenReady(); download(getSheet(name), "ocean_soup_" + name + ".png"); }
+  function renderFrame(name, f){
+    const s = sheets[name].s, acc = new Float32Array(s*s*4);
+    layers.forEach(l => { if (!l.visible || l.opacity <= 0) return; const lf = layerFrame(l, name, f), m = l.mask && l.mask[name];
+      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+        const d = (y*s + x) * 4; if (!lf[d+3]) continue;
+        if (m && !m[storeIdx(l, name, f, x, y)]) continue;
+        const a = (lf[d+3] / 255) * l.opacity, ia = acc[d+3], oa = a + ia * (1 - a); if (oa <= 0) continue;
+        for (let c = 0; c < 3; c++) acc[d+c] = (lf[d+c]*a + acc[d+c]*ia*(1-a)) / oa; acc[d+3] = oa; } });
+    const img = new ImageData(s, s);
+    for (let i = 0; i < s*s*4; i++) img.data[i] = clamp(Math.round(i % 4 === 3 ? acc[i] * 255 : acc[i]), 0, 255);
+    return img;
+  }
+  function renderSheet(name){ const sh = sheets[name], c = document.createElement("canvas"); c.width = sh.s; c.height = sh.s * sh.frames;
+    const x = c.getContext("2d"); for (let f = 0; f < sh.frames; f++) x.putImageData(renderFrame(name, f), 0, f * sh.s); return c; }
+  let cache = {}; function dirty(){ cache = {}; drawAll(); }
+  function getSheet(name){ return cache[name] || (cache[name] = renderSheet(name)); }
+
+  function ensureMask(l){ if (!l.mask) l.mask = { still: new Array(256).fill(true), flow: new Array(1024).fill(true) }; }
+  function inPoly(pts, x, y){ let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; } return c; }
+
+  const fc = document.createElement("canvas");
+  const toolObj = {
+    down(px, py, e){ snap(); this.last = [px, py]; this.shift = e.shiftKey; this.op = kbMaskOp(e); this.warned = false;
+      if (tool === "lasso") { lasso = { pts: [[px, py]], op: this.op }; drawAll(); return; } this.apply(px, py, true); },
+    move(px, py){ if (tool === "lasso" && lasso) { const q = lasso.pts[lasso.pts.length - 1]; if (Math.hypot(px - q[0], py - q[1]) > 0.2) lasso.pts.push([px, py]); drawAll(); return; }
+      this.apply(px, py, false); },
+    up(){ if (tool === "lasso" && lasso) { const l = L(), s = sheets[sheet].s; ensureMask(l); let n = 0; const m = l.mask[sheet];
+        if (lasso.pts.length > 2) for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+          let hit = false; for (let j = 0; j < 3 && !hit; j++) for (let i = 0; i < 3 && !hit; i++) hit = inPoly(lasso.pts, x + i*s + 0.5, y + j*s + 0.5);
+          if (hit) { m[storeIdx(l, sheet, frame, x, y)] = lasso.op === "add"; n++; } }
+        lasso = null; if (!n) undo.pop(); else toast((this.op === "add" ? "Added " : "Removed ") + n + " px of mask"); drawLayers(); dirty(); }
+      persist(); },
+    cancel(){ lasso = null; const u = undo.pop(); if (u) restore(u); },
+    wheel(dy){ snap(); S.scale = clamp(S.scale * (dy < 0 ? 1.06 : 1/1.06), 0.25, 3); S.__set_scale(+S.scale.toFixed(2)); dirty(); persist(); },
+    apply(px, py, first){
+      const s = sheets[sheet].s, x = wrap(px, s), y = wrap(py, s), l = L();
+      if (tool === "move") { const dx = (px - this.last[0]) / s, dy = (py - this.last[1]) / s; this.last = [px, py];
+        if (this.shift) { S.rot = Math.round(((S.rot + dx * 180) + 540) % 360 - 180); S.__set_rot(S.rot); }
+        else { S.ox = +clamp(S.ox + dx, -1, 1).toFixed(3); S.oy = +clamp(S.oy + dy, -1, 1).toFixed(3); S.__set_ox(S.ox); S.__set_oy(S.oy); } }
+      else if (tool === "paint") { if (l.type !== "paint") { if (!this.warned) toast("Pencil works on paint layers. Pick or add one."); this.warned = true; return; }
+        l.px[sheet][storeIdx(l, sheet, frame, x, y)] = S.colors[S.sel]; }
+      else if (tool === "erase") { if (l.type === "paint") delete l.px[sheet][storeIdx(l, sheet, frame, x, y)]; else { ensureMask(l); l.mask[sheet][storeIdx(l, sheet, frame, x, y)] = false; } }
+      else if (tool === "maskbrush") { ensureMask(l); l.mask[sheet][storeIdx(l, sheet, frame, x, y)] = this.op === "add"; }
+      else if (tool === "picker") { const d = fc.getContext("2d").getImageData(x, y, 1, 1).data; if (d[3]) { S.colors[S.sel] = rgb2hex([d[0], d[1], d[2]]); drawSlots(); $("#fPick").value = S.colors[S.sel]; } return; }
+      dirty();
+    }
+  };
+  const view = makeView($("#fWrap"), $("#fCanvas"), 16, 16, toolObj, (px, py) => { const s = sheets[sheet].s; const x = Math.floor(px - s), y = Math.floor(py - s);
+    $("#stPx").textContent = (x>=0&&y>=0&&x<s&&y<s) ? x + ", " + y : "–"; });
+
+  function drawAll(){
+    const sh = sheets[sheet], s = sh.s, full = getSheet(sheet);
+    window.SOUP_TILE = fc; fc.width = s; fc.height = s; const fx = fc.getContext("2d"); fx.clearRect(0,0,s,s); fx.drawImage(full, 0, frame*s, s, s, 0, 0, s, s);
+    const { ctx, canvas, zoom, ox, oy } = view; ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#5d7da5"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) ctx.drawImage(fc, ox + i*s*zoom, oy + j*s*zoom, s*zoom, s*zoom);
+    const l = L(), maskTools = tool === "lasso" || tool === "maskbrush";
+    if (l.mask && (showMask || maskTools)) { const m = l.mask[sheet];
+      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) if (!m[storeIdx(l, sheet, frame, x, y)]) {
+        ctx.fillStyle = maskTools ? "rgba(200,40,40,.45)" : "rgba(200,40,40,.22)";
+        for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) ctx.fillRect(ox + (x + i*s)*zoom, oy + (y + j*s)*zoom, zoom, zoom); } }
+    ctx.fillStyle = "rgba(43,36,32,.4)";
+    ctx.fillRect(ox, oy, 3*s*zoom, s*zoom); ctx.fillRect(ox, oy + 2*s*zoom, 3*s*zoom, s*zoom); ctx.fillRect(ox, oy + s*zoom, s*zoom, s*zoom); ctx.fillRect(ox + 2*s*zoom, oy + s*zoom, s*zoom, s*zoom);
+    ctx.strokeStyle = "#f2b33d"; ctx.lineWidth = 2; ctx.strokeRect(ox + s*zoom, oy + s*zoom, s*zoom, s*zoom);
+    if (lasso) { ctx.strokeStyle = lasso.op === "add" ? "#7cd14a" : "#ff5a4a"; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.beginPath();
+      lasso.pts.forEach(([x, y], k) => k ? ctx.lineTo(ox + x*zoom, oy + y*zoom) : ctx.moveTo(ox + x*zoom, oy + y*zoom)); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
+    $("#stZoom").textContent = Math.round(zoom) + "×";
+    const pc = $("#planeCanvas"), px = pc.getContext("2d"); pc.width = s*4; pc.height = s*4; px.imageSmoothingEnabled = false;
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) px.drawImage(fc, i*s, j*s);
+    pc.style.width = pc.style.height = "300px"; pc.style.transform = `rotateX(${S.tilt}deg) rotateZ(${S.spin}deg)`;
+  }
+  view.redraw = drawAll;
+
+  let last = 0, acc = 0;
+  function tick(t){ requestAnimationFrame(tick); if (!playing || lasso || view.drawing || !$("#v-fluid").classList.contains("on")) { last = t; return; }
+    acc += t - last; last = t; const ft = 50 * (sheet === "still" ? 2 : 1);
+    if (acc >= ft) { acc = 0; frame = (frame + 1) % sheets[sheet].frames; fr.__set_frame(frame); drawAll(); } }
+
+  function persist(){ const o = {}; Object.keys(DEF).forEach(k => o[k] = S[k]); store("fluid", o); store("fluidLayers", layers); store("fluidActive", active); store("fluidSheet", sheet); }
+
+  // ---- layers panel ----
+  const TYPE = { img: "loaded PNG", oldbroth: "old v2 broth (fixed)", broth: "generated broth", bits: "generated bits", paint: "paint", old: "old v2 texture" };
+  function drawLayers(){
+    const box = $("#fLayers"); box.innerHTML = "";
+    layers.slice().reverse().forEach(l => { const idx = layers.indexOf(l);
+      const row = document.createElement("div"); row.className = "layer" + (idx === active ? " on" : "");
+      const n = l.type === "paint" ? " · " + (Object.keys(l.px.still).length + Object.keys(l.px.flow).length) + " px" : "";
+      row.innerHTML = `<label class="eye" title="Show / hide"><input type="checkbox" ${l.visible ? "checked" : ""}></label>
+        <button class="lname">${l.name.replace(/</g, "&lt;")}<small>${TYPE[l.type]}${n}${l.mask ? " · mask" : ""}</small></button>`;
+      row.querySelector("input").onchange = e => { snap(); l.visible = e.target.checked; dirty(); persist(); };
+      row.querySelector(".lname").onclick = () => { active = idx; drawLayers(); drawAll(); persist(); };
+      box.appendChild(row); });
+    const l = L(); $("#fLayName").value = l.name; $("#fLayOpa").value = l.opacity; $("#fLayOpaN").value = l.opacity;
+    $("#fMaskToggle").textContent = l.mask ? "Remove mask" : "Add mask"; $("#fMaskFlow").checked = l.maskFlow;
+  }
+  function addLayer(type, name){ snap(); layers.splice(active + 1, 0, mk(type, name)); active++; drawLayers(); dirty(); persist(); }
+  function dupLayer(){ snap(); const c = JSON.parse(JSON.stringify(L())); c.id = uid++; c.name = (c.name + " copy").slice(0, 24); layers.splice(active + 1, 0, c); active++; drawLayers(); dirty(); persist(); }
+  function askDelete(){ if (layers.length < 2) return toast("Keep at least one layer"); $("#fDelConfirm").classList.add("on"); }
+  function moveLayer(d){ const j = active + d; if (j < 0 || j >= layers.length) return; snap(); [layers[active], layers[j]] = [layers[j], layers[active]]; active = j; drawLayers(); dirty(); persist(); }
+  function maskFill(v){ snap(); const l = L(); ensureMask(l); l.mask[sheet].fill(v); drawLayers(); dirty(); persist(); }
+  function maskInvert(){ snap(); const l = L(); ensureMask(l); l.mask[sheet] = l.mask[sheet].map(v => !v); drawLayers(); dirty(); persist(); }
+  function zoomBy(f){ const c = view.canvas, cx = c.width/2, cy = c.height/2, nz = clamp(view.zoom * f, 1, 80);
+    view.ox = cx - (cx - view.ox) * nz / view.zoom; view.oy = cy - (cy - view.oy) * nz / view.zoom; view.zoom = nz; drawAll(); }
+
+  $("#fLayAdd").onclick = () => addLayer("paint", "Paint " + (layers.filter(l => l.type === "paint").length + 1));
+  $("#fLayOld").onclick = () => { addLayer("old", "Old v2 texture"); toast("Old texture added. Hide the layers under it to see it alone."); };
+  $("#fLayOldSplit").onclick = () => { snap();
+    const b = mk("oldbroth", "Old v2 broth"), bits = mk("paint", "Old v2 bits");
+    ["still","flow"].forEach(n => { const s = sheets[n].s, d = sheets[n].old.data; for (let i = 0; i < s*s; i++) if (d[i*4+3] === 255) bits.px[n][i] = rgb2hex([d[i*4], d[i*4+1], d[i*4+2]]); });
+    layers.splice(active + 1, 0, b, bits); active += 2; drawLayers(); dirty(); persist();
+    toast(S.speed === 1 ? "Old v2 added as broth + bits layers" : "Added. Set Flow px/frame to 1 for the old bits to move like before"); };
+  $("#fLayLoad").onclick = () => $("#fFile").click();
+  $("#fFile").onchange = async e => { const files = [...e.target.files]; e.target.value = ""; if (!files.length) return;
+    const l = mk("img", "Loaded PNG"); l.src = { still: null, flow: null }; const names = [];
+    for (const f of files) { try {
+      const url = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(f); });
+      const im = await loadImage(url);
+      const kind = im.width === 16 && im.height % 16 === 0 ? "still" : im.width === 32 && im.height % 32 === 0 ? "flow" : null;
+      if (!kind) { toast(f.name + ": needs 16 px wide (still) or 32 px wide (flowing)"); continue; }
+      l.src[kind] = url; names.push(kind);
+    } catch (err) { toast("Couldn't read " + f.name); } }
+    if (!names.length) return;
+    l.name = (files.length === 1 ? files[0].name.replace(/\.png$/i, "") : "Loaded PNGs").slice(0, 24); l.maskFlow = false;
+    snap(); layers.splice(active + 1, 0, l); active++; preloadImgs(); drawLayers(); dirty(); persist();
+    toast("Loaded " + names.join(" + ") + (names.length < 2 ? ". Add the other sheet the same way, or pick both files at once." : "")); };
+  $("#fLayDup").onclick = dupLayer; $("#fLayDel").onclick = askDelete;
+  $("#fLayUp").onclick = () => moveLayer(1); $("#fLayDown").onclick = () => moveLayer(-1);
+  $("#fDelNo").onclick = () => $("#fDelConfirm").classList.remove("on");
+  $("#fDelYes").onclick = () => { snap(); layers.splice(active, 1); active = clamp(active - 1, 0, layers.length - 1); $("#fDelConfirm").classList.remove("on"); drawLayers(); dirty(); persist(); toast("Layer deleted (Undo brings it back)"); };
+  $("#fLayName").onchange = e => { snap(); L().name = e.target.value.trim() || L().name; drawLayers(); persist(); };
+  const setOpa = v => { L().opacity = clamp(+v, 0, 1); $("#fLayOpa").value = L().opacity; $("#fLayOpaN").value = L().opacity; dirty(); persist(); };
+  $("#fLayOpa").onpointerdown = () => snap(); $("#fLayOpa").oninput = e => setOpa(e.target.value); $("#fLayOpaN").onchange = e => { snap(); setOpa(e.target.value); };
+  $("#fMaskToggle").onclick = () => { snap(); const l = L(); if (l.mask) l.mask = null; else ensureMask(l); drawLayers(); dirty(); persist(); };
+  $("#fMaskInvert").onclick = maskInvert;
+  $("#fMaskShow").onclick = () => { showMask = !showMask; $("#fMaskShow").setAttribute("aria-pressed", showMask); drawAll(); };
+  $("#fMaskFlow").onchange = e => { snap(); L().maskFlow = e.target.checked; dirty(); persist(); };
+
+  const NUMS = [["fBright","bright"],["fContrast","contrast"],["fGrain","grain"],["fGrainSize","grainSize"],["fAlpha","alpha"],["fCount","count"],["fBig","big"],
+    ["fOx","ox"],["fOy","oy"],["fScale","scale"],["fRot","rot"],["fSpeed","speed"],["fSeed","seed"],["pTilt","tilt"],["pSpin","spin"]];
+  bindNumbers(S, NUMS, () => { dirty(); persist(); });
+  const fr = { frame: 0 }; bindNumbers(fr, [["fFrame","frame"]], () => { frame = clamp(fr.frame, 0, sheets[sheet].frames - 1); drawAll(); });
+  $("#fGrainAnim").checked = S.grainAnim; $("#fGrainAnim").onchange = e => { S.grainAnim = e.target.checked; dirty(); persist(); };
+  $("#fBroth").value = S.broth; $("#fBroth").oninput = e => { S.broth = e.target.value; dirty(); persist(); };
+  let drawSlots = slotPicker($("#fSlots"), $("#fPick"), S.colors, () => S.sel, i => { S.sel = i; persist(); }, () => { dirty(); persist(); });
+  $("#fReset").onclick = () => $("#fResetConfirm").classList.add("on");
+  $("#fResetNo").onclick = () => $("#fResetConfirm").classList.remove("on");
+  $("#fResetYes").onclick = () => { snap(); const keep = JSON.parse(JSON.stringify(DEF)); S.colors.splice(0, S.colors.length, ...keep.colors); delete keep.colors;
+    Object.assign(S, keep); NUMS.forEach(([, k]) => S["__set_"+k](S[k])); $("#fBroth").value = S.broth; $("#fGrainAnim").checked = S.grainAnim;
+    drawSlots = slotPicker($("#fSlots"), $("#fPick"), S.colors, () => S.sel, i => { S.sel = i; persist(); }, () => { dirty(); persist(); });
+    $("#fResetConfirm").classList.remove("on"); dirty(); persist(); toast("Values reset (Undo won't restore sliders)"); };
+
+  function setSheet(n){ sheet = n; frame = 0; $$("[data-fsheet]").forEach(b => b.setAttribute("aria-pressed", b.dataset.fsheet === n));
+    $("#fFrame").max = sheets[n].frames - 1; view.w = view.h = sheets[n].s * 3; view.fit(); drawAll(); persist(); }
+  $$("[data-fsheet]").forEach(b => b.onclick = () => setSheet(b.dataset.fsheet));
+  const NAMES = { move: "move bits", paint: "pencil", erase: "eraser", picker: "picker", lasso: "lasso", maskbrush: "mask brush" };
+  function setTool(t){ tool = t; $$("[data-ftool]").forEach(b => b.setAttribute("aria-pressed", b.dataset.ftool === t)); $("#stTool").textContent = NAMES[t]; drawAll(); }
+  $$("[data-ftool]").forEach(b => b.onclick = () => setTool(b.dataset.ftool));
+  $("#fPlay").onclick = () => { playing = !playing; $("#fPlay").textContent = playing ? "Pause" : "Play"; $("#fPlay").setAttribute("aria-pressed", playing); };
+  $("#fUndo").onclick = doUndo; $("#fRedo").onclick = doRedo;
+  function openSave(){ if (!$("#saveBack").hidden) return; $("#saveBack").hidden = false; setTimeout(() => $("#svGo").focus(), 0); }
+  const closeSave = () => { $("#saveBack").hidden = true; };
+  $("#svCancel").onclick = closeSave;
+  $("#saveBack").addEventListener("pointerdown", e => { if (e.target.id === "saveBack") closeSave(); });
+  $("#saveBack").addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); closeSave(); } if (e.key === "Enter" && e.target.tagName !== "BUTTON") $("#svGo").click(); });
+  $("#svGo").onclick = () => { const jobs = [];
+    if ($("#svStill").checked) jobs.push(() => saveSheet("still"));
+    if ($("#svFlow").checked) jobs.push(() => saveSheet("flow"));
+    if ($("#svMeta").checked) jobs.push(() => $("#fExportMeta").click());
+    if (!jobs.length) return toast("Tick at least one texture");
+    closeSave(); jobs.forEach((j, k) => setTimeout(j, k * 450)); };
+  $("#fExportStill").onclick = () => saveSheet("still");
+  $("#fExportFlow").onclick = () => saveSheet("flow");
+  $("#fExportMeta").onclick = () => { downloadText('{\n  "animation": {\n    "frametime": 2\n  }\n}\n', "ocean_soup_still.png.mcmeta");
+    setTimeout(() => downloadText('{\n  "animation": {}\n}\n', "ocean_soup_flow.png.mcmeta"), 400); };
+
+  KB.tabs.fluid = {
+    "tool.move": () => setTool("move"), "tool.pencil": () => setTool("paint"), "tool.eraser": () => setTool("erase"), "tool.picker": () => setTool("picker"),
+    "tool.lasso": () => setTool("lasso"), "tool.maskbrush": () => setTool("maskbrush"),
+    "edit.undo": doUndo, "edit.redo": doRedo, "edit.redo2": doRedo,
+    "layer.add": () => $("#fLayAdd").click(), "layer.dup": dupLayer, "layer.del": askDelete, "layer.up": () => moveLayer(1), "layer.down": () => moveLayer(-1),
+    "mask.all": () => maskFill(true), "mask.none": () => maskFill(false), "mask.invert": maskInvert, "mask.swap": () => kbSetSwap(!KB.swap),
+    "view.fit": () => { view.fit(); drawAll(); }, "view.in": () => zoomBy(1.25), "view.out": () => zoomBy(0.8), "play.toggle": () => $("#fPlay").click(),
+    "file.save": () => openSave(),
+  };
+  preloadImgs(); drawLayers(); setTool("move"); setSheet(sheet); requestAnimationFrame(tick);
+  window.addEventListener("resize", () => { if ($("#v-fluid").classList.contains("on")) { view.size(); view.fit(); drawAll(); } });
+}
+function initFx(){
+  const DEF = { particles: [
+      { kind: "dust", color: "#b07c42", color2: "#7a5229", size: 1.2, count: 20, spread: 0.4, speed: 0.02, item: "minecraft:carrot", block: "minecraft:brown_concrete", id: "minecraft:bubble_pop" },
+      { kind: "dust", color: "#7a5229", color2: "#b07c42", size: 0.8, count: 10, spread: 0.35, speed: 0.02, item: "minecraft:carrot", block: "minecraft:brown_concrete", id: "minecraft:bubble_pop" },
+      { kind: "item", color: "#b07c42", color2: "#7a5229", size: 1, count: 4, spread: 0.3, speed: 0.05, item: "minecraft:carrot", block: "minecraft:brown_concrete", id: "minecraft:bubble_pop" },
+      { kind: "particle", color: "#b07c42", color2: "#7a5229", size: 1, count: 8, spread: 0.4, speed: 0.02, item: "minecraft:carrot", block: "minecraft:brown_concrete", id: "minecraft:bubble_pop" } ],
+    sound: "minecraft:block.bubble_column.upwards_inside", vol: 1, pitch: 0.8, overlay: 100 };
+  let S = Object.assign(JSON.parse(JSON.stringify(DEF)), load("fx", {}));
+  const KINDS = { dust: "Coloured dust", fade: "Dust that changes colour", item: "Item chunks", block: "Block bits", particle: "Any particle id" };
+  const ITEM_COL = { carrot: "#eb781e", salmon: "#f58c78", cod: "#c9a978", kelp: "#3c6e28", dried_kelp: "#2c4a22", potato: "#d9b56a", baked_potato: "#c99a45",
+    beetroot: "#8a2030", mushroom_stew: "#b07c42", bowl: "#7a5229", sugar: "#f2f2f2", bone_meal: "#e8e8e0", red_mushroom: "#c43a30", brown_mushroom: "#9a7552" };
+  const r3 = v => (Math.round(v * 1000) / 1000).toString();
+  const rgbF = h => hex2rgb(h).map(c => r3(c / 255)).join(" ");
+  function idOf(p){ if (p.kind === "dust") return `minecraft:dust ${rgbF(p.color)} ${p.size}`;
+    if (p.kind === "fade") return `minecraft:dust_color_transition ${rgbF(p.color)} ${p.size} ${rgbF(p.color2)}`;
+    if (p.kind === "item") return `minecraft:item ${p.item}`; if (p.kind === "block") return `minecraft:block ${p.block}`; return p.id; }
+  function code(){
+    const lines = S.particles.map(p => `    { id: '${idOf(p).replace(/'/g, "")}', count: ${p.count}, spread: ${p.spread}, speed: ${p.speed} },`);
+    return `// Dissolve effect for ocean_soup_spread.js, made with the Soup Texture Bench.\n// Lives in kubejs/server_scripts/ - edit here or in the bench, then /reload.\nglobal.SOUP_FX = {\n  particles: [\n${lines.join("\n")}\n  ],\n  sound: '${(S.sound || "").replace(/'/g, "")}',\n  volume: ${S.vol},\n  pitch: ${S.pitch},\n  overlay: { alpha: ${S.overlay} }\n}\n`; }
+  function persist(){ store("fx", S); $("#xCode").textContent = code(); }
+
+  // ---- list editor ----
+  function field(label, html){ return `<div class="row" style="grid-template-columns:78px 1fr"><label>${label}</label>${html}</div>`; }
+  function drawList(){
+    const box = $("#xList"); box.innerHTML = "";
+    S.particles.forEach((p, i) => {
+      const el = document.createElement("div"); el.className = "fxrow inset";
+      el.innerHTML = `
+        <div class="fxhead"><b>#${i + 1}</b><select data-k="kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${p.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+          <button class="mc" data-act="up" title="Move up">↑</button><button class="mc warn" data-act="del" title="Remove">✕</button></div>
+        ${p.kind === "dust" || p.kind === "fade" ? field(p.kind === "fade" ? "From" : "Colour", `<input type="color" data-k="color" value="${p.color}">`) : ""}
+        ${p.kind === "fade" ? field("To", `<input type="color" data-k="color2" value="${p.color2}">`) : ""}
+        ${p.kind === "dust" || p.kind === "fade" ? field("Size", `<input type="number" data-k="size" step="0.1" min="0.1" max="4" value="${p.size}">`) : ""}
+        ${p.kind === "item" ? field("Item id", `<input type="text" data-k="item" list="xItems" value="${p.item}">`) : ""}
+        ${p.kind === "block" ? field("Block id", `<input type="text" data-k="block" value="${p.block}">`) : ""}
+        ${p.kind === "particle" ? field("Particle", `<input type="text" data-k="id" list="xParts" value="${p.id}">`) : ""}
+        <div class="fx3">
+          <label>Count<input type="number" data-k="count" min="0" max="200" step="1" value="${p.count}"></label>
+          <label>Spread<input type="number" data-k="spread" min="0" max="3" step="0.05" value="${p.spread}"></label>
+          <label>Speed<input type="number" data-k="speed" min="0" max="1" step="0.01" value="${p.speed}"></label>
+        </div>`;
+      el.querySelectorAll("[data-k]").forEach(inp => inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => {
+        const k = inp.dataset.k; p[k] = inp.type === "number" ? +inp.value : inp.value; persist(); if (k === "kind") drawList(); }));
+      el.querySelector('[data-act="del"]').onclick = () => { S.particles.splice(i, 1); drawList(); persist(); };
+      el.querySelector('[data-act="up"]').onclick = () => { if (i) { [S.particles[i-1], S.particles[i]] = [S.particles[i], S.particles[i-1]]; drawList(); persist(); } };
+      box.appendChild(el);
+    });
+  }
+  const dl = document.createElement("div"); dl.innerHTML = `<datalist id="xItems">${Object.keys(ITEM_COL).map(k => `<option value="minecraft:${k}">`).join("")}</datalist>
+    <datalist id="xParts">${["bubble_pop","bubble","splash","fishing","falling_water","cloud","effect","happy_villager","poof","dripping_honey","falling_honey","bubble_column_up","current_down"].map(k => `<option value="minecraft:${k}">`).join("")}</datalist>`;
+  document.body.appendChild(dl);
+
+  $("#xAdd").onclick = () => { S.particles.push(JSON.parse(JSON.stringify(DEF.particles[0]))); drawList(); persist(); };
+  $("#xFromSoup").onclick = () => { const f = load("fluid", {}), base = f.broth || "#b07c42", dark = rgb2hex(hex2rgb(base).map(c => c * 0.7));
+    let n = 0; S.particles.forEach(p => { if (p.kind === "dust" || p.kind === "fade") { p.color = n ? dark : base; p.color2 = n ? base : dark; n++; } });
+    drawList(); persist(); toast(n ? "Dust now uses the broth colour " + base : "Add a Coloured dust particle first"); };
+  $("#xSound").value = S.sound; $("#xSound").oninput = e => { S.sound = e.target.value.trim(); persist(); };
+  if (S.overlay === undefined) S.overlay = DEF.overlay;
+  bindNumbers(S, [["xVol","vol"],["xPitch","pitch"],["xOverlay","overlay"]], () => { persist(); drawOv(); });
+  function drawOv(){ const c = $("#xOvCanvas"), x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    // fake view: sky, grass, a tree trunk, then the soup film on top
+    x.fillStyle = "#79a6e0"; x.fillRect(0, 0, 160, 90); x.fillStyle = "#3c6e28"; x.fillRect(0, 55, 160, 35); x.fillStyle = "#6b4a2b"; x.fillRect(110, 20, 12, 40);
+    let tile = window.SOUP_TILE;
+    if (tile) { const o = document.createElement("canvas"); o.width = tile.width; o.height = tile.height; const ox = o.getContext("2d"); ox.drawImage(tile, 0, 0);
+      const id = ox.getImageData(0, 0, o.width, o.height); for (let i = 3; i < id.data.length; i += 4) id.data[i] = 255; ox.putImageData(id, 0, 0); tile = o; }
+    x.globalAlpha = S.overlay / 255;
+    if (tile) for (let j = 0; j < 90; j += 40) for (let i = 0; i < 160; i += 40) x.drawImage(tile, 0, 0, tile.width, tile.height, i, j, 40, 40);
+    else { x.fillStyle = "#b07c42"; x.fillRect(0, 0, 160, 90); } x.globalAlpha = 1; }
+  setTimeout(drawOv, 300);
+  const save = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([code()], { type: "text/javascript" })); a.download = "ocean_soup_fx.js";
+    document.body.appendChild(a); a.click(); a.remove(); toast("Saved ocean_soup_fx.js"); };
+  $("#xSave").onclick = save;
+  $("#xCopy").onclick = async () => { try { await navigator.clipboard.writeText(code()); toast("Code copied"); } catch (e) { toast("Clipboard blocked. Use Save instead."); } };
+  $("#xReset").onclick = () => $("#xResetConfirm").classList.add("on");
+  $("#xResetNo").onclick = () => $("#xResetConfirm").classList.remove("on");
+  $("#xResetYes").onclick = () => { const d = JSON.parse(JSON.stringify(DEF)); S.particles = d.particles; S.sound = d.sound; S.vol = d.vol; S.pitch = d.pitch;
+    $("#xSound").value = S.sound; S.overlay = d.overlay; S.__set_vol(S.vol); S.__set_pitch(S.pitch); S.__set_overlay(S.overlay); drawOv();
+    $("#xResetConfirm").classList.remove("on"); drawList(); persist(); toast("Default soup effect restored"); };
+  KB.tabs.fx = { "file.save": save, "play.toggle": () => burst() };
+
+  // ---- preview ----
+  const cv = $("#xCanvas"), ctx = cv.getContext("2d"); let parts = [], lastBurst = 0;
+  function colourFor(p){ if (p.kind === "dust" || p.kind === "fade") return null;
+    if (p.kind === "item") return ITEM_COL[(p.item || "").replace(/^minecraft:/, "")] || "#a07850";
+    if (p.kind === "block") return "#8a7a6a";
+    const id = p.id || ""; if (/bubble|cloud|poof/.test(id)) return "#ffffff"; if (/splash|water|fishing|current/.test(id)) return "#4a78d8";
+    if (/honey/.test(id)) return "#e8a020"; if (/villager/.test(id)) return "#6ad04a"; return "#f0f0f0"; }
+  function burst(){ lastBurst = performance.now();
+    S.particles.forEach(p => { for (let k = 0; k < p.count; k++) {
+      const g = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+      parts.push({ p, x: g() * p.spread, y: 0.3 + g() * p.spread * 0.75, z: g() * p.spread,
+        vx: g() * p.speed * 6, vy: (Math.random() * 0.6 + 0.2) * p.speed * 8 + (p.kind === "item" ? 0.08 : 0.01), vz: g() * p.speed * 6,
+        life: 0, max: p.kind === "item" ? 1.1 : p.kind === "particle" && /bubble_pop/.test(p.id) ? 0.35 : 0.9 + Math.random() * 0.5,
+        grav: p.kind === "item" || p.kind === "block" || /splash|falling/.test(p.id || "") ? 1.4 : p.kind === "particle" && /bubble/.test(p.id) ? -0.2 : 0 }); } }); }
+  $("#xBurst").onclick = burst;
+  let prev = performance.now();
+  function frame(t){ requestAnimationFrame(frame); if (!$("#v-fx").classList.contains("on")) { prev = t; return; }
+    const dt = Math.min(0.05, (t - prev) / 1000); prev = t;
+    if ($("#xLoop").checked && t - lastBurst > 1500) burst();
+    const r = $("#xWrap").getBoundingClientRect(); if (cv.width !== (r.width|0) || cv.height !== (r.height|0)) { cv.width = r.width|0; cv.height = r.height|0; }
+    const W = cv.width, H = cv.height, u = Math.min(W, H) / 4, cx = W / 2, cy = H * 0.62;
+    ctx.imageSmoothingEnabled = false; ctx.fillStyle = "#5d7da5"; ctx.fillRect(0, 0, W, H);
+    // ground + soup block (front face uses the current fluid frame when available)
+    ctx.fillStyle = "#3c6e28"; ctx.fillRect(0, cy + u/2, W, H); ctx.fillStyle = "#6b4a2b"; ctx.fillRect(0, cy + u/2 + u*0.12, W, H);
+    const tile = window.SOUP_TILE; if (tile) ctx.drawImage(tile, 0, 0, tile.width, tile.height, cx - u/2, cy - u/2, u, u); else { ctx.fillStyle = "#b07c42"; ctx.fillRect(cx - u/2, cy - u/2, u, u); }
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2; ctx.strokeRect(cx - u/2, cy - u/2, u, u);
+    parts = parts.filter(q => (q.life += dt) < q.max);
+    parts.sort((a, b) => a.z - b.z).forEach(q => {
+      q.vy -= q.grav * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y < -0.5 && q.grav > 0) { q.y = -0.5; q.vy = 0; q.vx *= 0.8; }
+      const k = q.life / q.max, sx = cx + (q.x + q.z * 0.35) * u, sy = cy - (q.y + q.z * 0.2) * u, p = q.p;
+      let col = colourFor(p), sz = u / 16 * (p.kind === "dust" || p.kind === "fade" ? p.size * 1.6 : p.kind === "item" ? 1.6 : 1.2);
+      if (p.kind === "dust") col = p.color;
+      if (p.kind === "fade") { const a = hex2rgb(p.color), b = hex2rgb(p.color2); col = rgb2hex(a.map((v, i) => v + (b[i] - v) * k)); }
+      if (p.kind === "dust" || p.kind === "fade") sz *= 1 - k * 0.6;
+      ctx.globalAlpha = p.kind === "item" || p.kind === "block" ? 1 : 1 - k * 0.5;
+      if (p.kind === "particle" && /bubble/.test(p.id)) { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, sz / 4); ctx.strokeRect(sx - sz/2, sy - sz/2, sz, sz); }
+      else { ctx.fillStyle = col; ctx.fillRect(Math.round(sx - sz/2), Math.round(sy - sz/2), Math.ceil(sz), Math.ceil(sz)); }
+      ctx.globalAlpha = 1; });
+  }
+  drawList(); persist(); requestAnimationFrame(frame);
+}
+function initOverlay(){
+  const TYPE = { paint: "paint", broth: "generated broth", bits: "generated bits", soup: "soup fluid texture", old: "old 64×64 overlay", img: "loaded PNG" };
+  const TDEF = {
+    paint: {}, broth: { color: "#94683a", grain: 0.18, mottle: 0.35, blob: 22, seed: 3 }, bits: { count: 6, big: 0.5, seed: 5 },
+    soup: { scale: 4 }, old: { scale: 4 }, img: { scale: 4 } };
+  let uid = 1;
+  const mk = (type, name) => Object.assign({ id: uid++, type, name, visible: true, opacity: 1, mask: null, tile: false, T: 32, ox: 0, oy: 0, px: {}, src: null }, JSON.parse(JSON.stringify(TDEF[type] || {})));
+  const defaultLayers = () => { uid = 1; return [mk("broth", "Broth"), mk("bits", "Bits")]; };
+  const pack = o => JSON.stringify(o, (k, v) => k === "mask" && Array.isArray(v) ? v.map(b => b ? 1 : 0).join("") : v);
+  const unpack = s => JSON.parse(s, (k, v) => k === "mask" && typeof v === "string" ? Array.from(v, c => c === "1") : v);
+  let st = (() => { try { const s = localStorage.getItem("soupbench:overlay"); return s ? unpack(s) : null; } catch (e) { return null; } })();
+  if (!st) st = { W: 256, H: 144, layers: defaultLayers(), active: 1, colors: BIT_DEFAULTS.slice(0, 4), sel: 0, alpha: 100 };
+  uid = Math.max(1, ...st.layers.map(l => l.id)) + 1;
+  const persist = () => { try { localStorage.setItem("soupbench:overlay", pack(st)); } catch (e) { toast("Browser storage is full, so this overlay can't be saved between visits"); } };
+  const L = () => st.layers[st.active];
+  const undo = [], redo = [];
+  const snap = () => { undo.push(pack({ layers: st.layers, active: st.active, W: st.W, H: st.H })); if (undo.length > 40) undo.shift(); redo.length = 0; };
+  const restore = s => { const o = unpack(s); st.layers = o.layers; st.active = o.active; st.W = o.W; st.H = o.H; $("#oSize").value = st.W + "x" + st.H; resize(false); };
+  const doUndo = () => { if (!undo.length) return toast("Nothing to undo"); redo.push(pack({ layers: st.layers, active: st.active, W: st.W, H: st.H })); restore(undo.pop()); };
+  const doRedo = () => { if (!redo.length) return toast("Nothing to redo"); undo.push(pack({ layers: st.layers, active: st.active, W: st.W, H: st.H })); restore(redo.pop()); };
+  const mod = (a, n) => ((a % n) + n) % n;
+
+  // ---- images (soup tile, old overlay, loaded PNGs) ----
+  const imgCache = {};
+  function imgFor(l){
+    if (l.type === "old") return IMG.old_overlay64 || null;
+    if (l.type === "soup") { const t = window.SOUP_TILE; if (!t) return null; return t.getContext("2d").getImageData(0, 0, t.width, t.height); }
+    if (l.type === "img" && l.src) { const k = l.id + ":" + l.src.length;
+      if (imgCache[k] === undefined) { imgCache[k] = null; loadImage(l.src).then(im => { imgCache[k] = imgData(im); render(); }); }
+      return imgCache[k]; }
+    return null;
+  }
+  // ---- generated layers ----
+  function vnoise(x, y, seed, period){ // smooth value noise; wraps every `period` cells when tiling
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, w = v => period ? mod(v, period) : v;
+    const h = (i, j) => hash(w(i), w(j), 9, seed); const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = h(x0, y0) + (h(x0 + 1, y0) - h(x0, y0)) * sx, b = h(x0, y0 + 1) + (h(x0 + 1, y0 + 1) - h(x0, y0 + 1)) * sx; return a + (b - a) * sy;
+  }
+  const bitsCache = {};
+  function bitsMap(l, spaceW, spaceH){
+    const key = l.id + ":" + [l.count, l.big, l.seed, spaceW, spaceH, st.colors.join(",")].join("|");
+    if (bitsCache[key]) return bitsCache[key];
+    const r = rng(l.seed * 7919 + 1), m = new Map(), n = Math.round(l.count * spaceW * spaceH / 1000);
+    for (let k = 0; k < n; k++) { const x = Math.floor(r() * spaceW), y = Math.floor(r() * spaceH), c = st.colors[Math.floor(r() * st.colors.length)], big = r() < l.big, dir = r() < 0.5;
+      m.set(y * spaceW + x, c); if (big) { const c2 = rgb2hex(hex2rgb(c).map(q => q * 0.82)); if (dir) m.set(y * spaceW + mod(x + 1, spaceW), c2); else m.set(mod(y + 1, spaceH) * spaceW + x, c2); } }
+    return (bitsCache[key] = m);
+  }
+  function sample(l, x, y, ctx){ // returns [r,g,b,a] or null
+    let lx = x - l.ox, ly = y - l.oy;
+    if (l.type === "soup" || l.type === "old" || l.type === "img") { const im = ctx.img; if (!im) return null; let u, v;
+      if (l.tile) { u = mod(Math.floor(lx / l.scale), im.width); v = mod(Math.floor(ly / l.scale), im.height); }
+      else { if (lx < 0 || ly < 0 || lx >= st.W || ly >= st.H) return null; u = Math.floor(lx * im.width / st.W); v = Math.floor(ly * im.height / st.H); }
+      const d = (v * im.width + u) * 4; if (!im.data[d + 3]) return null; return [im.data[d], im.data[d + 1], im.data[d + 2], im.data[d + 3]]; }
+    const W = l.tile ? l.T : st.W, H = l.tile ? l.T : st.H;
+    if (l.tile) { lx = mod(lx, l.T); ly = mod(ly, l.T); } else if (lx < 0 || ly < 0 || lx >= W || ly >= H) return null;
+    if (l.type === "paint") { const p = l.px[Math.floor(ly) * st.W + Math.floor(lx)]; if (!p) return null; const c = hex2rgb(p); return [c[0], c[1], c[2], 255]; }
+    if (l.type === "bits") { const p = ctx.bits.get(Math.floor(ly) * W + Math.floor(lx)); if (!p) return null; const c = hex2rgb(p); return [c[0], c[1], c[2], 255]; }
+    if (l.type === "broth") { const br = ctx.br, period = l.tile ? Math.max(1, Math.round(l.T / l.blob)) : 0;
+      const n = hash(Math.floor(lx), Math.floor(ly), 0, l.seed), m = vnoise(lx / (l.tile ? l.T / period : l.blob), ly / (l.tile ? l.T / period : l.blob), l.seed, period);
+      const v = 1 + (n - 0.5) * 2 * l.grain + (m - 0.5) * l.mottle; return [br[0] * v, br[1] * v, br[2] * v, 255]; }
+    return null;
+  }
+  const comp = document.createElement("canvas");
+  function composite(){
+    const W = st.W, H = st.H, acc = new Float32Array(W * H * 4);
+    st.layers.forEach(l => { if (!l.visible || l.opacity <= 0) return;
+      const ctx = { img: imgFor(l), br: l.color ? hex2rgb(l.color) : null, bits: l.type === "bits" ? bitsMap(l, l.tile ? l.T : W, l.tile ? l.T : H) : null };
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (l.mask && !l.mask[i]) continue;
+        const p = sample(l, x, y, ctx); if (!p) continue; const d = i * 4, a = p[3] / 255 * l.opacity, ia = acc[d + 3], oa = a + ia * (1 - a); if (oa <= 0) continue;
+        for (let c = 0; c < 3; c++) acc[d + c] = (p[c] * a + acc[d + c] * ia * (1 - a)) / oa; acc[d + 3] = oa; } });
+    const out = new ImageData(W, H); for (let i = 0; i < acc.length; i++) out.data[i] = clamp(Math.round(i % 4 === 3 ? acc[i] * 255 : acc[i]), 0, 255);
+    comp.width = W; comp.height = H; comp.getContext("2d").putImageData(out, 0, 0);
+  }
+
+  // ---- view + tools ----
+  let tool = "move", lasso = null, showMask = true, hover = null;
+  function ensureMask(l){ if (!l.mask) l.mask = new Array(st.W * st.H).fill(true); }
+  function inPoly(pts, x, y){ let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; } return c; }
+  const toolObj = {
+    down(px, py, e){ snap(); this.last = [px, py]; this.start = { ox: L().ox, oy: L().oy }; this.op = kbMaskOp(e); this.warned = false;
+      if (tool === "lasso") { lasso = { pts: [[px, py]], op: this.op }; drawView(); return; } this.apply(px, py); },
+    move(px, py){ if (tool === "lasso" && lasso) { const q = lasso.pts[lasso.pts.length - 1]; if (Math.hypot(px - q[0], py - q[1]) > 0.5) lasso.pts.push([px, py]); drawView(); return; } this.apply(px, py); },
+    up(){ if (tool === "lasso" && lasso) { const l = L(); ensureMask(l); let n = 0;
+        if (lasso.pts.length > 2) { const xs = lasso.pts.map(p => p[0]), ys = lasso.pts.map(p => p[1]);
+          const x0 = clamp(Math.floor(Math.min(...xs)), 0, st.W - 1), x1 = clamp(Math.ceil(Math.max(...xs)), 0, st.W - 1), y0 = clamp(Math.floor(Math.min(...ys)), 0, st.H - 1), y1 = clamp(Math.ceil(Math.max(...ys)), 0, st.H - 1);
+          for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inPoly(lasso.pts, x + 0.5, y + 0.5)) { l.mask[y * st.W + x] = lasso.op === "add"; n++; } }
+        lasso = null; if (!n) undo.pop(); else toast((this.op === "add" ? "Added " : "Removed ") + n + " px of mask"); drawLayers(); render(); }
+      persist(); },
+    cancel(){ lasso = null; const u = undo.pop(); if (u) restore(u); },
+    apply(px, py){
+      const l = L(), x = Math.floor(px), y = Math.floor(py), inside = x >= 0 && y >= 0 && x < st.W && y < st.H;
+      if (tool === "move") { l.ox = Math.round(this.start.ox + px - this.last[0]); l.oy = Math.round(this.start.oy + py - this.last[1]); st.__set_ox && syncFields(); render(); return; }
+      if (!inside) return; const i = y * st.W + x;
+      if (tool === "paint") { if (l.type !== "paint") { if (!this.warned) toast("Pencil works on paint layers. Pick or add one."); this.warned = true; return; }
+        const lx = l.tile ? mod(x - l.ox, l.T) : x - l.ox, ly = l.tile ? mod(y - l.oy, l.T) : y - l.oy; if (lx < 0 || ly < 0 || lx >= st.W || ly >= st.H) return; l.px[ly * st.W + lx] = st.colors[st.sel]; }
+      else if (tool === "erase") { if (l.type === "paint") { const lx = l.tile ? mod(x - l.ox, l.T) : x - l.ox, ly = l.tile ? mod(y - l.oy, l.T) : y - l.oy; delete l.px[ly * st.W + lx]; } else { ensureMask(l); l.mask[i] = false; } }
+      else if (tool === "maskbrush") { ensureMask(l); l.mask[i] = this.op === "add"; }
+      else if (tool === "picker") { const d = comp.getContext("2d").getImageData(x, y, 1, 1).data; if (d[3]) { st.colors[st.sel] = rgb2hex([d[0], d[1], d[2]]); drawSlots(); $("#oPick").value = st.colors[st.sel]; } return; }
+      render();
+    }
+  };
+  const view = makeView($("#oWrap"), $("#oCanvas"), st.W, st.H, toolObj, (px, py) => { hover = [Math.floor(px), Math.floor(py)];
+    $("#stPx").textContent = (hover[0] >= 0 && hover[1] >= 0 && hover[0] < st.W && hover[1] < st.H) ? hover.join(", ") : "–"; drawView(); });
+  function drawView(){
+    const { ctx, canvas, zoom, ox, oy } = view; ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cs = Math.max(4, zoom * 8); for (let y = 0; y < st.H * zoom; y += cs) for (let x = 0; x < st.W * zoom; x += cs) {
+      ctx.fillStyle = ((x + y) / cs) % 2 ? "#9a9a9a" : "#a9a9a9"; ctx.fillRect(ox + x, oy + y, Math.min(cs, st.W * zoom - x), Math.min(cs, st.H * zoom - y)); }
+    ctx.drawImage(comp, ox, oy, st.W * zoom, st.H * zoom);
+    const l = L(), maskTools = tool === "lasso" || tool === "maskbrush";
+    if (l.mask && (showMask || maskTools)) { ctx.fillStyle = maskTools ? "rgba(200,40,40,.45)" : "rgba(200,40,40,.22)";
+      for (let i = 0; i < l.mask.length; i++) if (!l.mask[i]) ctx.fillRect(ox + (i % st.W) * zoom, oy + Math.floor(i / st.W) * zoom, zoom, zoom); }
+    if (l.tile && tool === "move") { ctx.strokeStyle = "#3a6fd0"; ctx.setLineDash([6, 4]); ctx.lineWidth = 2;
+      const T = (l.type === "soup" || l.type === "old" || l.type === "img") ? ((imgFor(l) || { width: 16 }).width * l.scale) : l.T;
+      ctx.strokeRect(ox + mod(l.ox, T) * zoom, oy + mod(l.oy, T) * zoom, T * zoom, T * zoom); ctx.setLineDash([]); }
+    ctx.strokeStyle = "#f2b33d"; ctx.lineWidth = 2; ctx.strokeRect(ox, oy, st.W * zoom, st.H * zoom);
+    if (lasso) { ctx.strokeStyle = lasso.op === "add" ? "#7cd14a" : "#ff5a4a"; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.beginPath();
+      lasso.pts.forEach(([x, y], k) => k ? ctx.lineTo(ox + x * zoom, oy + y * zoom) : ctx.moveTo(ox + x * zoom, oy + y * zoom)); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
+    if (hover && tool !== "move" && tool !== "lasso" && hover[0] >= 0 && hover[1] >= 0 && hover[0] < st.W && hover[1] < st.H) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.strokeRect(ox + hover[0] * zoom + .5, oy + hover[1] * zoom + .5, zoom - 1, zoom - 1); }
+    $("#stZoom").textContent = (Math.round(zoom * 10) / 10) + "×";
+  }
+  view.redraw = drawView;
+  function drawScreen(){ const c = $("#oScreen"), x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    x.fillStyle = "#79a6e0"; x.fillRect(0, 0, 320, 180); x.fillStyle = "#3c6e28"; x.fillRect(0, 110, 320, 70); x.fillStyle = "#6b4a2b"; x.fillRect(220, 40, 24, 80);
+    x.globalAlpha = st.alpha / 255; x.drawImage(comp, 0, 0, 320, 180); x.globalAlpha = 1; }
+  function render(){ composite(); drawView(); drawScreen(); }
+
+  // ---- layers panel + per-layer fields ----
+  function drawLayers(){
+    const box = $("#oLayers"); box.innerHTML = "";
+    st.layers.slice().reverse().forEach(l => { const idx = st.layers.indexOf(l);
+      const row = document.createElement("div"); row.className = "layer" + (idx === st.active ? " on" : "");
+      row.innerHTML = `<label class="eye" title="Show / hide"><input type="checkbox" ${l.visible ? "checked" : ""}></label>
+        <button class="lname">${l.name.replace(/</g, "&lt;")}<small>${TYPE[l.type]}${l.tile ? " · tiled" : ""}${l.mask ? " · mask" : ""}</small></button>`;
+      row.querySelector("input").onchange = e => { snap(); l.visible = e.target.checked; render(); persist(); };
+      row.querySelector(".lname").onclick = () => { st.active = idx; drawLayers(); drawView(); persist(); };
+      box.appendChild(row); });
+    const l = L(); $("#oLayName").value = l.name; $("#oLayOpa").value = l.opacity; $("#oLayOpaN").value = l.opacity;
+    $("#oMaskToggle").textContent = l.mask ? "Remove mask" : "Add mask";
+    $("#oTileOn").setAttribute("aria-pressed", l.tile); $("#oTileOff").setAttribute("aria-pressed", !l.tile);
+    syncFields();
+  }
+  const F = (label, k, min, max, step) => `<div class="row"><label>${label}</label><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}"><input type="number" data-kn="${k}" min="${min}" max="${max}" step="${step}"></div>`;
+  function syncFields(){
+    const l = L(), box = $("#oLayerFields"); let h = "";
+    if (l.tile && (l.type === "paint" || l.type === "broth" || l.type === "bits")) h += F("Tile size", "T", 4, 128, 1);
+    if (l.type === "soup" || l.type === "old" || l.type === "img") h += l.tile ? F("Texel size", "scale", 1, 32, 1) : `<p class="note">Stretched across the whole canvas.</p>`;
+    if (l.type === "broth") h += `<div class="row"><label>Colour</label><input type="color" data-k="color"><span></span></div>` + F("Grain", "grain", 0, 0.8, 0.01) + F("Mottle", "mottle", 0, 1.5, 0.05) + F("Mottle size", "blob", 2, 80, 1) + F("Seed", "seed", 1, 999, 1);
+    if (l.type === "bits") h += F("Amount", "count", 0, 60, 0.5) + F("2-px bits", "big", 0, 1, 0.05) + F("Seed", "seed", 1, 999, 1);
+    if (l.type === "paint") h += `<p class="note">${Object.keys(l.px).length} painted px.${l.tile ? " Paint inside the first tile; it repeats." : ""}</p>`;
+    if (box.dataset.for !== String(l.id) + l.tile + l.type) { box.innerHTML = h; box.dataset.for = String(l.id) + l.tile + l.type;
+      box.querySelectorAll("[data-k]").forEach(inp => inp.addEventListener("input", () => { const k = inp.dataset.k; l[k] = inp.type === "color" ? inp.value : +inp.value;
+        const n = box.querySelector(`[data-kn="${k}"]`); if (n) n.value = inp.value; render(); persist(); }));
+      box.querySelectorAll("[data-k]").forEach(inp => inp.addEventListener("pointerdown", () => snap()));
+      box.querySelectorAll("[data-kn]").forEach(inp => inp.addEventListener("change", () => { snap(); const k = inp.dataset.kn; l[k] = clamp(+inp.value, +inp.min, +inp.max);
+        box.querySelector(`[data-k="${k}"]`).value = l[k]; inp.value = l[k]; render(); persist(); })); }
+    box.querySelectorAll("[data-k]").forEach(inp => { inp.value = L()[inp.dataset.k]; }); box.querySelectorAll("[data-kn]").forEach(inp => { inp.value = L()[inp.dataset.kn]; });
+    $("#oOx").value = l.ox; $("input[data-for=oOx]").value = l.ox; $("#oOy").value = l.oy; $("input[data-for=oOy]").value = l.oy;
+  }
+  st.__set_ox = true;
+  ["oOx","oOy"].forEach(id => { const k = id === "oOx" ? "ox" : "oy", r = $("#" + id), n = $(`input[data-for=${id}]`);
+    r.addEventListener("pointerdown", () => snap()); r.addEventListener("input", () => { L()[k] = +r.value; n.value = r.value; render(); persist(); });
+    n.addEventListener("change", () => { snap(); L()[k] = clamp(+n.value, -256, 256); r.value = L()[k]; render(); persist(); }); });
+  const setTile = v => { snap(); L().tile = v; drawLayers(); render(); persist(); };
+  $("#oTileOn").onclick = () => setTile(true); $("#oTileOff").onclick = () => setTile(false);
+
+  function addLayer(type, name, extra){ snap(); const l = Object.assign(mk(type, name), extra || {}); st.layers.splice(st.active + 1, 0, l); st.active++; drawLayers(); render(); persist(); }
+  const NAMES = { paint: "Paint", broth: "Broth", bits: "Bits", soup: "Soup texture", old: "Old overlay" };
+  $("#oLayAdd").onclick = () => { const t = $("#oAddType").value; addLayer(t, NAMES[t] + " " + (st.layers.filter(l => l.type === t).length + 1), t === "old" || t === "soup" ? { tile: true } : null); };
+  $("#oLayLoad").onclick = () => $("#oFile").click();
+  $("#oFile").onchange = async e => { const f = e.target.files[0]; if (!f) return; e.target.value = "";
+    try { const url = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(f); });
+      const im = await loadImage(url); addLayer("img", f.name.replace(/\.png$/i, "").slice(0, 24), { src: url, tile: im.width < st.W / 2 });
+      toast("Loaded " + im.width + "×" + im.height + (im.width < st.W / 2 ? " as a tiled layer" : " stretched over the canvas")); } catch (err) { toast("Couldn't read that PNG"); } };
+  $("#oLayDup").onclick = () => { snap(); const c = JSON.parse(JSON.stringify(L())); c.id = uid++; c.name = (c.name + " copy").slice(0, 24); st.layers.splice(st.active + 1, 0, c); st.active++; drawLayers(); render(); persist(); };
+  const moveLayer = d => { const j = st.active + d; if (j < 0 || j >= st.layers.length) return; snap(); [st.layers[st.active], st.layers[j]] = [st.layers[j], st.layers[st.active]]; st.active = j; drawLayers(); render(); persist(); };
+  $("#oLayUp").onclick = () => moveLayer(1); $("#oLayDown").onclick = () => moveLayer(-1);
+  const askDel = () => { if (st.layers.length < 2) return toast("Keep at least one layer"); $("#oDelConfirm").classList.add("on"); };
+  $("#oLayDel").onclick = askDel; $("#oDelNo").onclick = () => $("#oDelConfirm").classList.remove("on");
+  $("#oDelYes").onclick = () => { snap(); st.layers.splice(st.active, 1); st.active = clamp(st.active - 1, 0, st.layers.length - 1); $("#oDelConfirm").classList.remove("on"); drawLayers(); render(); persist(); toast("Layer deleted (Undo brings it back)"); };
+  $("#oLayName").onchange = e => { snap(); L().name = e.target.value.trim() || L().name; drawLayers(); persist(); };
+  const setOpa = v => { L().opacity = clamp(+v, 0, 1); $("#oLayOpa").value = L().opacity; $("#oLayOpaN").value = L().opacity; render(); persist(); };
+  $("#oLayOpa").onpointerdown = () => snap(); $("#oLayOpa").oninput = e => setOpa(e.target.value); $("#oLayOpaN").onchange = e => { snap(); setOpa(e.target.value); };
+  const maskFill = v => { snap(); ensureMask(L()); L().mask.fill(v); drawLayers(); render(); persist(); };
+  const maskInvert = () => { snap(); ensureMask(L()); L().mask = L().mask.map(v => !v); drawLayers(); render(); persist(); };
+  $("#oMaskToggle").onclick = () => { snap(); const l = L(); if (l.mask) l.mask = null; else ensureMask(l); drawLayers(); render(); persist(); };
+  $("#oMaskInvert").onclick = maskInvert;
+  $("#oMaskShow").onclick = () => { showMask = !showMask; $("#oMaskShow").setAttribute("aria-pressed", showMask); drawView(); };
+
+  function resize(clearPixels){
+    if (clearPixels) st.layers.forEach(l => { l.mask = null; l.px = {}; });
+    view.w = st.W; view.h = st.H; view.fit(); drawLayers(); render(); persist(); }
+  $("#oSize").value = st.W + "x" + st.H;
+  $("#oSize").onchange = e => { const [w, h] = e.target.value.split("x").map(Number); const had = st.layers.some(l => l.mask || Object.keys(l.px).length);
+    snap(); st.W = w; st.H = h; resize(true); if (had) toast("Masks and painted pixels were cleared for the new size (Undo brings them back)"); };
+  const drawSlots = slotPicker($("#oSlots"), $("#oPick"), st.colors, () => st.sel, i => { st.sel = i; persist(); }, () => { render(); persist(); });
+  bindNumbers(st, [["oAlpha","alpha"]], () => { drawScreen(); persist(); });
+  const TNAMES = { move: "move layer", paint: "pencil", erase: "eraser", picker: "picker", lasso: "lasso", maskbrush: "mask brush" };
+  function setTool(t){ tool = t; $$("[data-otool]").forEach(b => b.setAttribute("aria-pressed", b.dataset.otool === t)); $("#stTool").textContent = TNAMES[t]; drawView(); }
+  $$("[data-otool]").forEach(b => b.onclick = () => setTool(b.dataset.otool));
+  const zoomBy = f => { const c = view.canvas, cx = c.width / 2, cy = c.height / 2, nz = clamp(view.zoom * f, 0.5, 80);
+    view.ox = cx - (cx - view.ox) * nz / view.zoom; view.oy = cy - (cy - view.oy) * nz / view.zoom; view.zoom = nz; drawView(); };
+  $("#oFit").onclick = () => { view.fit(); drawView(); };
+  $("#oUndo").onclick = doUndo; $("#oRedo").onclick = doRedo;
+  const save = () => { composite(); download(comp, "soup_overlay.png"); };
+  $("#oSave").onclick = save;
+  $("#oReset").onclick = () => $("#oResetConfirm").classList.add("on");
+  $("#oResetNo").onclick = () => $("#oResetConfirm").classList.remove("on");
+  $("#oResetYes").onclick = () => { snap(); st.layers = defaultLayers(); st.active = 1; st.W = 256; st.H = 144; $("#oSize").value = "256x144";
+    st.colors.splice(0, st.colors.length, ...BIT_DEFAULTS.slice(0, 4)); drawSlots(); st.alpha = 100; st.__set_alpha(100);
+    $("#oResetConfirm").classList.remove("on"); resize(false); toast("Default overlay restored (Undo brings yours back)"); };
+  KB.tabs.ov = {
+    "tool.move": () => setTool("move"), "tool.pencil": () => setTool("paint"), "tool.eraser": () => setTool("erase"), "tool.picker": () => setTool("picker"),
+    "tool.lasso": () => setTool("lasso"), "tool.maskbrush": () => setTool("maskbrush"), "edit.undo": doUndo, "edit.redo": doRedo, "edit.redo2": doRedo,
+    "layer.add": () => $("#oLayAdd").click(), "layer.dup": () => $("#oLayDup").click(), "layer.del": askDel, "layer.up": () => moveLayer(1), "layer.down": () => moveLayer(-1),
+    "mask.all": () => maskFill(true), "mask.none": () => maskFill(false), "mask.invert": maskInvert, "mask.swap": () => kbSetSwap(!KB.swap),
+    "view.fit": () => { view.fit(); drawView(); }, "view.in": () => zoomBy(1.25), "view.out": () => zoomBy(0.8), "file.save": save };
+  window.addEventListener("resize", () => { if ($("#v-ov").classList.contains("on")) { view.size(); view.fit(); drawView(); } });
+  $$(".tab").forEach(t => t.addEventListener("click", () => { if (t.dataset.tab === "ov") setTimeout(() => { view.size(); view.fit(); render(); }, 0); }));
+  setTool("move"); drawLayers(); view.fit(); render();
+}
+</script>
+</body>
+</html>
