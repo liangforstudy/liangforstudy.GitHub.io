@@ -419,7 +419,7 @@
                 const forgetBtn = el('button', { className: 'ed-btn' });
                 saveBtn.addEventListener('click', save);
                 armed(discardBtn, 'Discard', 'Tap again to discard', () => location.reload());
-                armed(forgetBtn, 'Lock', 'Tap again: forget token', () => { lsSet(TOKEN_KEY, null); exitEdit(true); });
+                armed(forgetBtn, 'Log out here', 'Tap again to log out this device', () => { lsSet(TOKEN_KEY, null); exitEdit(true); });
                 doneBtn.addEventListener('click', () => {
                     if (isDirty()) { msg('You have unsaved changes. Save them, or tap Discard.'); return; }
                     exitEdit(false);
