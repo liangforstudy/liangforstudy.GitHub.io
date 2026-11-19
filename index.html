@@ -78,12 +78,9 @@
                 max-width: none; object-fit: cover; transition: transform 0.3s;
             }
             .game-card:hover img { transform: scale(1.05); }
-            /* "to top right" puts the 50% line exactly on the top-left -> bottom-right diagonal */
-            .game-card::after {
-                content: ""; position: absolute; inset: 0; pointer-events: none;
-                background: linear-gradient(to top right, #1a1a22 45%, rgba(26,26,26,0) 62%);
-            }
             .card-text { position: absolute; left: 0; bottom: 0; z-index: 1; padding: 10px 12px; max-width: 70%; }
+            .card-title, .card-desc { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6); }
+            .card-desc { color: #ccc; }
             .card-title { font-size: 15px; font-weight: 700; color: #fff; }
             .card-desc { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.35; }
             @media (max-width: 600px) {
