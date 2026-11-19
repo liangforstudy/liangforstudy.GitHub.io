@@ -78,6 +78,17 @@
                 max-width: none; object-fit: cover; transition: transform 0.3s;
             }
             .game-card:hover img { transform: scale(1.05); }
+            .game-card::after {
+                content: ""; position: absolute; inset: 0; pointer-events: none;
+                background: linear-gradient(to top,
+                    rgba(30, 30, 30, var(--fade-alpha)) var(--fade-start),
+                    rgba(30, 30, 30, 0) calc(var(--fade-start) + var(--fade-height)));
+            }
+            /* Art sections: Pinterest-style, each card takes its artwork's own shape */
+            .proj-section[data-tab] .card-grid { display: block; columns: 240px 4; column-gap: 12px; }
+            @media (max-width: 600px) { .proj-section[data-tab] .card-grid { columns: 2; } }
+            .proj-section[data-tab] .game-card { aspect-ratio: auto; break-inside: avoid; margin: 0 0 12px; min-height: 80px; }
+            .proj-section[data-tab] .game-card img { position: static; height: auto; }
             .card-text { position: absolute; left: 0; bottom: 0; z-index: 1; padding: 10px 12px; max-width: 70%; }
             .card-title, .card-desc { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6); }
             .card-desc { color: #ccc; }
@@ -175,6 +186,20 @@
             }
             body.editing .ed-add { display: block; }
             body.editing .game-card { cursor: pointer; }
+            .drop-target { outline: 3px solid #5865F2 !important; outline-offset: 3px; }
+            #lookPanel {
+                position: fixed; left: 0; right: 0; z-index: 901; padding: 12px 16px;
+                background: #1e1e22; border-top: 1px solid #333; font-size: 14px; text-align: left; color: #ddd;
+            }
+            #lookPanel .lk-row { display: flex; align-items: center; gap: 12px; }
+            #lookPanel .lk-row span { flex: 0 0 120px; }
+            #lookPanel .lk-row b { flex: 0 0 48px; text-align: right; }
+            #lookPanel input[type=range] { flex: 1; height: 44px; margin: 0; accent-color: #5865F2; }
+        </style>
+        <style id="siteSettings">
+            /* SETTINGS:START - change these from the Look panel at index.html#edit */
+            :root { --fade-start: 0%; --fade-height: 55%; --fade-alpha: 0.85; }
+            /* SETTINGS:END */
         </style>
     </head>
     <body>
@@ -333,6 +358,8 @@
                 if (!c.classList.length) c.removeAttribute('class');
                 c.removeAttribute('data-count');
                 c.querySelectorAll('img[hidden]').forEach(i => i.removeAttribute('hidden'));
+                c.querySelectorAll('img[data-path]').forEach(i => { i.setAttribute('src', i.dataset.path); i.removeAttribute('data-path'); });
+                c.classList.remove('drop-target');
                 return c.outerHTML;
             }
             function buildRegion(root) {
@@ -352,6 +379,18 @@
                 return out + I + '</div>\n' + I + END;
             }
             let baseline = buildRegion(document);   // what the page looked like when it loaded
+            const settingsEl = document.getElementById('siteSettings');
+            const LOOK_RE = /:root\s*\{[^}]*\}/;
+            function readLook(text) {
+                const m = (text || '').match(LOOK_RE), t = m ? m[0] : '';
+                const num = (name, d) => { const r = t.match(new RegExp('--' + name + ':\\s*([\\d.]+)')); return r ? parseFloat(r[1]) : d; };
+                return { start: num('fade-start', 0), height: num('fade-height', 55), alpha: num('fade-alpha', 0.85) };
+            }
+            const lookLine = v => ':root { --fade-start: ' + v.start + '%; --fade-height: ' + v.height + '%; --fade-alpha: ' + v.alpha + '; }';
+            let look = readLook(settingsEl && settingsEl.textContent);
+            let baseLook = lookLine(look);
+            function applyLook() { if (settingsEl) settingsEl.textContent = settingsEl.textContent.replace(LOOK_RE, lookLine(look)); }
+            const previews = new Map();
 
             // ---------- GitHub API ----------
             let token = null, branch = 'main';
@@ -489,11 +528,33 @@
                     if (isDirty()) { msg('You have unsaved changes. Save them, or tap Discard.'); return; }
                     exitEdit(false);
                 });
-                bar = el('div', { id: 'editBar' }, [msgEl, saveBtn, discardBtn, doneBtn, forgetBtn]);
+                const lookBtn = el('button', { className: 'ed-btn', textContent: 'Look' });
+                lookBtn.addEventListener('click', toggleLook);
+                bar = el('div', { id: 'editBar' }, [msgEl, saveBtn, discardBtn, lookBtn, doneBtn, forgetBtn]);
                 document.body.append(bar);
                 updateDirty();
             }
+            let lookPanel = null;
+            function toggleLook() {
+                if (lookPanel) { lookPanel.remove(); lookPanel = null; return; }
+                const row = (label, key, min, max, step, fmt) => {
+                    const val = el('b', { textContent: fmt(look[key]) });
+                    const r = el('input', { type: 'range', min, max, step, value: look[key] });
+                    r.setAttribute('aria-label', label);
+                    r.addEventListener('input', () => { look[key] = parseFloat(r.value); val.textContent = fmt(look[key]); applyLook(); updateDirty(); });
+                    return el('div', { className: 'lk-row' }, [el('span', { textContent: label }), r, val]);
+                };
+                const pct = v => Math.round(v) + '%';
+                lookPanel = el('div', { id: 'lookPanel' }, [
+                    row('Shade starts at', 'start', 0, 80, 1, pct),
+                    row('Shade height', 'height', 0, 100, 1, pct),
+                    row('Shade darkness', 'alpha', 0, 1, 0.05, v => Math.round(v * 100) + '%')
+                ]);
+                lookPanel.style.bottom = (bar ? bar.offsetHeight : 0) + 'px';
+                document.body.append(lookPanel);
+            }
             function exitEdit(force) {
+                if (lookPanel) { lookPanel.remove(); lookPanel = null; }
                 if (force && isDirty()) { location.href = location.pathname + location.search; return; }
                 editing = false; token = null;
                 document.body.classList.remove('editing');
@@ -502,7 +563,7 @@
                 leaveHash();
             }
             function msg(t) { if (msgEl) msgEl.textContent = t; }
-            function isDirty() { return buildRegion(document) !== baseline; }
+            function isDirty() { return buildRegion(document) !== baseline || lookLine(look) !== baseLook; }
             function updateDirty() {
                 const d = isDirty();
                 saveBtn.disabled = !d || busy;
@@ -525,12 +586,20 @@
                         msg('Not saved: the cards on GitHub don’t match this page (GitHub Pages may still be updating, or it was edited elsewhere). Reload in a minute and redo the move.');
                         return;
                     }
+                    const sS = text.indexOf('/* SETTINGS:START'), sE = text.indexOf('/* SETTINGS:END */');
+                    if (sS >= 0 && sE > sS && lookLine(readLook(text.slice(sS, sE))) !== baseLook) {
+                        busy = false; updateDirty();
+                        msg('Not saved: the Look settings on GitHub don\u2019t match this page. Reload in a minute and try again.');
+                        return;
+                    }
                     const region = buildRegion(document);
-                    const next = text.slice(0, s) + region + text.slice(e + END.length);
+                    let next = text.slice(0, s) + region + text.slice(e + END.length);
+                    const nS = next.indexOf('/* SETTINGS:START'), nE = next.indexOf('/* SETTINGS:END */');
+                    if (nS >= 0 && nE > nS) next = next.slice(0, nS) + next.slice(nS, nE).replace(LOOK_RE, lookLine(look)) + next.slice(nE);
                     await gh('/contents/' + FILE, { method: 'PUT', body: JSON.stringify({
-                        message: 'Rearrange homepage projects (edit mode)', content: textToB64(next), sha: f.sha, branch
+                        message: 'Update homepage (edit mode)', content: textToB64(next), sha: f.sha, branch
                     }) });
-                    baseline = region;
+                    baseline = region; baseLook = lookLine(look);
                     busy = false; updateDirty();
                     msg('Saved ✓ The live site updates in about a minute.');
                 } catch (err) {
@@ -549,6 +618,8 @@
                     if (!img) { img = document.createElement('img'); a.prepend(img); }
                     img.setAttribute('src', v.thumb); img.setAttribute('alt', '');
                     img.setAttribute('onerror', 'this.hidden=true'); img.removeAttribute('hidden');
+                    if (previews.has(v.thumb)) { img.dataset.path = v.thumb; img.src = previews.get(v.thumb); }
+                    else img.removeAttribute('data-path');
                 } else if (img) img.remove();
                 let text = a.querySelector('.card-text');
                 if (!text) {
@@ -569,7 +640,25 @@
                 const [lT, title] = field('Title', get('.card-title'), 'My new game');
                 const [lD, desc] = field('Description', get('.card-desc'), 'One short line about it.');
                 const [lL, link] = field('Link', card ? card.getAttribute('href') : '', 'mygame.html or https://github.com/…');
-                const [lI, thumb] = field('Thumbnail (optional)', img ? img.getAttribute('src') : '', 'assets/media/thumbs/my-game.png');
+                const [lI, thumb] = field(grid.closest('.proj-section[data-tab]') ? 'Image' : 'Thumbnail (optional)', img ? (img.dataset.path || img.getAttribute('src')) : '', 'assets/media/thumbs/my-game.png');
+                const picker = el('input', { type: 'file', accept: 'image/*', hidden: true });
+                const upBtn = el('button', { type: 'button', className: 'ed-btn', textContent: 'Upload image\u2026' });
+                const upRow = el('div', { className: 'ed-row' }, [upBtn, picker]);
+                upRow.style.justifyContent = 'flex-start';
+                upBtn.addEventListener('click', () => picker.click());
+                picker.addEventListener('change', async () => {
+                    const file = picker.files && picker.files[0];
+                    if (!file) return;
+                    upBtn.disabled = ok.disabled = true; err.textContent = 'Uploading ' + file.name + '\u2026';
+                    try {
+                        const path = await uploadImage(file, folderFor(grid));
+                        thumb.value = path; thumbTouched = true;
+                        if (grid.closest('.proj-section[data-tab]') && (!link.value.trim() || isImg(link.value))) link.value = path;
+                        if (!title.value.trim()) title.value = niceName(file.name);
+                        err.textContent = 'Uploaded \u2713';
+                    } catch (e) { err.textContent = 'Upload failed. ' + friendly(e); }
+                    upBtn.disabled = ok.disabled = false; picker.value = '';
+                });
                 let thumbTouched = !!card;
                 thumb.addEventListener('input', () => { thumbTouched = true; });
                 const isImg = v => /\.(png|jpe?g|gif|webp|avif)$/i.test(v.trim());
@@ -589,13 +678,14 @@
                 const where = h ? h.textContent.replace('⠇', '').trim() : '';
                 gate = el('div', { id: 'editGate' }, [el('div', { className: 'ed-box' }, [
                     el('h3', { textContent: (card ? 'Edit card' : 'New card') + (where ? ' — ' + where : '') }),
-                    lT, lD, lL, lI, err, row
+                    lT, lD, lL, lI, upRow, err, row
                 ])]);
                 document.body.append(gate);
                 cancel.addEventListener('click', closeGate);
                 ok.addEventListener('click', () => {
                     const v = { title: title.value.trim(), desc: desc.value.trim(), link: link.value.trim(), thumb: thumb.value.trim() };
                     if (!v.title) { err.textContent = 'Give it a title.'; title.focus(); return; }
+                    if (!v.link && v.thumb && grid.closest('.proj-section[data-tab]')) v.link = v.thumb;
                     if (!v.link) { err.textContent = 'Add a link (a page like mygame.html, or a full https:// address).'; link.focus(); return; }
                     if (/^\s*javascript:/i.test(v.link)) { err.textContent = 'That link type isn’t allowed.'; return; }
                     const a = card || document.createElement('a');
@@ -611,6 +701,103 @@
                 gate.addEventListener('keydown', e => { if (e.key === 'Escape') closeGate(); });
                 title.focus();
             }
+
+            function folderFor(grid) {
+                const t = (grid.closest('.proj-section') || {}).dataset;
+                const tab = t && t.tab;
+                return tab === 'art2019' ? 'assets/media/art/2019' : tab === 'aiart' ? 'assets/media/art/ai' : 'assets/media/thumbs';
+            }
+            function niceName(fname) {
+                const n = fname.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+                return n ? n.charAt(0).toUpperCase() + n.slice(1) : 'Untitled';
+            }
+            function readB64(file) {
+                return new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(String(r.result).split(',')[1] || '');
+                    r.onerror = () => rej(r.error);
+                    r.readAsDataURL(file);
+                });
+            }
+            async function uploadImage(file, folder) {
+                if (!/^image\//.test(file.type)) throw Object.assign(new Error(file.name + ' isn\u2019t an image.'), { status: 1 });
+                if (file.size > 25 * 1024 * 1024) throw Object.assign(new Error(file.name + ' is over 25 MB.'), { status: 1 });
+                const ext = ((file.name.match(/\.([a-z0-9]+)$/i) || [])[1] || (file.type.split('/')[1] || 'png')).toLowerCase();
+                const path = folder + '/' + slug(file.name.replace(/\.[^.]+$/, '')) + '-' + Date.now().toString(36) + '.' + ext;
+                await gh('/contents/' + path.split('/').map(encodeURIComponent).join('/'), { method: 'PUT', body: JSON.stringify({
+                    message: 'Upload ' + path + ' (edit mode)', content: await readB64(file), branch
+                }) });
+                previews.set(path, URL.createObjectURL(file));
+                return path;
+            }
+            function cardValues(a) {
+                const img = a.querySelector('img');
+                return {
+                    title: (a.querySelector('.card-title') || {}).textContent || '',
+                    desc: (a.querySelector('.card-desc') || {}).textContent || '',
+                    link: a.getAttribute('href') || '',
+                    thumb: img ? (img.dataset.path || img.getAttribute('src')) : ''
+                };
+            }
+            function newCard(grid, v) {
+                const a = document.createElement('a');
+                fillCard(a, v);
+                grid.append(a);
+                a.append(el('span', { className: 'edit-handle', textContent: '\u2807', title: 'Drag card' }));
+                a.lastChild.dataset.kind = 'card';
+                return a;
+            }
+
+            // ---------- Drop image files onto cards or sections (computer) ----------
+            let dropEl = null;
+            const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+            function dropTargetAt(t) {
+                if (!t || !t.closest) return null;
+                return t.closest('#projects .game-card') || t.closest('#projects .proj-section');
+            }
+            function setDrop(n) { if (dropEl !== n) { if (dropEl) dropEl.classList.remove('drop-target'); dropEl = n; if (n) n.classList.add('drop-target'); } }
+            document.addEventListener('dragover', e => {
+                if (!editing || !hasFiles(e)) return;
+                e.preventDefault();
+                const t = busy || gate ? null : dropTargetAt(e.target);
+                e.dataTransfer.dropEffect = t ? 'copy' : 'none';
+                setDrop(t);
+            });
+            document.addEventListener('dragleave', e => { if (editing && !e.relatedTarget) setDrop(null); });
+            document.addEventListener('drop', async e => {
+                if (!editing || !hasFiles(e)) return;
+                e.preventDefault();
+                const t = dropEl; setDrop(null);
+                if (!t || busy || gate) return;
+                const files = [...e.dataTransfer.files].filter(f => /^image\//.test(f.type));
+                if (!files.length) { msg('Drop image files (PNG, JPG, GIF, WebP).'); return; }
+                const isCard = t.classList.contains('game-card');
+                const grid = isCard ? t.parentNode : t.querySelector('.card-grid');
+                const art = !!grid.closest('.proj-section[data-tab]');
+                busy = true; saveBtn.disabled = discardBtn.disabled = true;
+                let done = 0, lastNew = null;
+                try {
+                    for (const f of (isCard ? files.slice(0, 1) : files)) {
+                        msg('Uploading ' + (done + 1) + ' of ' + (isCard ? 1 : files.length) + ': ' + f.name + '\u2026');
+                        const path = await uploadImage(f, folderFor(grid));
+                        if (isCard) {
+                            const v = cardValues(t);
+                            if (art && (!v.link || v.link === v.thumb)) v.link = path;
+                            v.thumb = path;
+                            fillCard(t, v);
+                        } else {
+                            lastNew = newCard(grid, { title: niceName(f.name), desc: '', link: art ? path : '', thumb: path });
+                        }
+                        done++;
+                    }
+                    busy = false; updateDirty();
+                    if (!isCard && !art && lastNew) { openCardForm(grid, lastNew); msg('Image uploaded. Add a link for the new card.'); }
+                    else msg((isCard ? 'Image swapped.' : done + ' card' + (done === 1 ? '' : 's') + ' added.') + ' Tap Save to GitHub when you\u2019re done.');
+                } catch (err) {
+                    busy = false; updateDirty();
+                    msg('Upload stopped after ' + done + '. ' + friendly(err));
+                }
+            });
 
             // In edit mode, tapping a card opens its editor instead of the link
             projects.addEventListener('click', e => {
@@ -710,7 +897,8 @@
                         if (d < bestD) { bestD = d; best = { c, r }; }
                     }
                     const r = best.r;
-                    const after = y < r.top ? false : y > r.bottom ? true : x > r.left + r.width / 2;
+                    const masonry = !!grid.closest('.proj-section[data-tab]');
+                    const after = y < r.top ? false : y > r.bottom ? true : masonry ? y > r.top + r.height / 2 : x > r.left + r.width / 2;
                     ref = after ? nextOther(best.c) : best.c;
                 }
                 if (item.parentNode === grid && nextOther(item) === ref && (ref === null || item.nextElementSibling === ref)) return;
