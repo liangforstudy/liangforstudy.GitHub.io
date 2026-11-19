@@ -121,7 +121,7 @@
                 box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); background-color: #1a1a1a; border-radius: 12px;
             }
             h2.drag-ghost { padding: 0 10px; background: #2a2a30; }
-            #projects.sorting-sections .card-grid { display: none; }
+            #projects.sorting-sections .card-grid, #projects.sorting-sections .ed-add { display: none !important; }
             #projects.sorting-sections .card-section::after { content: attr(data-count); margin-left: auto; font-size: 13px; font-weight: 400; color: #999; }
 
             #editBar {
@@ -157,6 +157,16 @@
             }
             #editGate .ed-row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
             #editGate .ed-err { color: #ff8a80; min-height: 1.2em; }
+            #editGate label { display: block; margin-top: 8px; font-weight: 700; color: #eee; }
+            #editGate label input { margin: 4px 0 0; font-weight: 400; }
+            #editGate .ed-row .ed-spacer { flex: 1; }
+            .ed-add {
+                display: none; align-self: flex-start; min-height: 44px; padding: 0 16px;
+                border-radius: 10px; border: 1px dashed #666; background: transparent; color: #ccc;
+                font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+            }
+            body.editing .ed-add { display: block; }
+            body.editing .game-card { cursor: pointer; }
         </style>
     </head>
     <body>
@@ -167,7 +177,7 @@
                 <section class="proj-section">
                     <h2 class="card-section">Games</h2>
                     <div class="card-grid">
-                        <a href="pixel.html" class="game-card"><img src="assets/media/thumbs/pixel.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Pixel Art</div><div class="card-desc">Draw and animate pixel art right in your browser.</div></div></a>
+                        <a href="https://github.com/liangforstudy/pixelart-app/blob/main/Pixel_Art_App.html" class="game-card"><img src="assets/media/thumbs/pixel.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Pixel Art</div><div class="card-desc">Draw and animate pixel art right in your browser.</div></div></a>
                         <a href="centaur.html" class="game-card"><img src="assets/media/thumbs/centaur.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Infinite Digging (beta)</div><div class="card-desc">A smooth voxel sandbox. Dig tunnels and mold the ground.</div></div></a>
                         <a href="match3burger.html" class="game-card"><img src="assets/media/thumbs/match3burger.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Match Burgers!</div><div class="card-desc">A match-3 puzzle game with burgers.</div></div></a>
                         <a href="stackup.html" class="game-card"><img src="assets/media/thumbs/stackup.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Stackup</div><div class="card-desc">A simple stacking game. How high can you go?</div></div></a>
@@ -407,6 +417,9 @@
                     a.append(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag card' }));
                     a.lastChild.dataset.kind = 'card';
                 });
+                projects.querySelectorAll(':scope > .proj-section').forEach(sec => {
+                    sec.append(el('button', { type: 'button', className: 'ed-add', textContent: '+ Add card' }));
+                });
             }
             function enterEdit() {
                 editing = true;
@@ -432,7 +445,7 @@
                 if (force && isDirty()) { location.href = location.pathname + location.search; return; }
                 editing = false; token = null;
                 document.body.classList.remove('editing');
-                projects.querySelectorAll('.edit-handle').forEach(h => h.remove());
+                projects.querySelectorAll('.edit-handle, .ed-add').forEach(h => h.remove());
                 if (bar) { bar.remove(); bar = null; }
                 leaveHash();
             }
@@ -442,7 +455,7 @@
                 const d = isDirty();
                 saveBtn.disabled = !d || busy;
                 discardBtn.disabled = !d || busy;
-                msg(d ? 'Unsaved changes.' : 'Drag the ⠇ handles to move cards and sections.');
+                msg(d ? 'Unsaved changes.' : 'Drag ⠇ to move. Tap a card to edit it, or use + Add card.');
             }
 
             async function save() {
@@ -474,8 +487,87 @@
                 }
             }
 
-            // In edit mode, tapping a card shouldn't open it
-            projects.addEventListener('click', e => { if (editing) e.preventDefault(); }, true);
+            // ---------- Add / edit / delete cards ----------
+            function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'card'; }
+            function fillCard(a, v) {
+                a.className = 'game-card';
+                a.setAttribute('href', v.link);
+                let img = a.querySelector('img');
+                if (v.thumb) {
+                    if (!img) { img = document.createElement('img'); a.prepend(img); }
+                    img.setAttribute('src', v.thumb); img.setAttribute('alt', '');
+                    img.setAttribute('onerror', 'this.hidden=true'); img.removeAttribute('hidden');
+                } else if (img) img.remove();
+                let text = a.querySelector('.card-text');
+                if (!text) {
+                    text = el('div', { className: 'card-text' }, [el('div', { className: 'card-title' }), el('div', { className: 'card-desc' })]);
+                    a.append(text);
+                }
+                text.querySelector('.card-title').textContent = v.title;
+                text.querySelector('.card-desc').textContent = v.desc;
+            }
+            function openCardForm(grid, card) {
+                if (gate || drag) return;
+                const get = sel => card ? (card.querySelector(sel) || {}).textContent || '' : '';
+                const img = card && card.querySelector('img');
+                const field = (label, value, ph) => {
+                    const input = el('input', { type: 'text', value, placeholder: ph || '', spellcheck: false, autocomplete: 'off' });
+                    return [el('label', {}, [document.createTextNode(label), input]), input];
+                };
+                const [lT, title] = field('Title', get('.card-title'), 'My new game');
+                const [lD, desc] = field('Description', get('.card-desc'), 'One short line about it.');
+                const [lL, link] = field('Link', card ? card.getAttribute('href') : '', 'mygame.html or https://github.com/…');
+                const [lI, thumb] = field('Thumbnail (optional)', img ? img.getAttribute('src') : '', 'assets/media/thumbs/my-game.png');
+                let thumbTouched = !!card;
+                thumb.addEventListener('input', () => { thumbTouched = true; });
+                title.addEventListener('input', () => { if (!thumbTouched) thumb.value = title.value.trim() ? 'assets/media/thumbs/' + slug(title.value) + '.png' : ''; });
+                const err = el('div', { className: 'ed-err' });
+                const ok = el('button', { className: 'ed-btn primary', textContent: card ? 'Update card' : 'Add card' });
+                const cancel = el('button', { className: 'ed-btn', textContent: 'Cancel' });
+                const row = el('div', { className: 'ed-row' });
+                if (card) {
+                    const del = el('button', { className: 'ed-btn' });
+                    armed(del, 'Delete card', 'Tap again to delete', () => { card.remove(); closeGate(); updateDirty(); });
+                    row.append(del, el('span', { className: 'ed-spacer' }));
+                }
+                row.append(cancel, ok);
+                const sec = grid.closest('.proj-section'), h = sec && headingOf(sec);
+                const where = h ? h.textContent.replace('⠇', '').trim() : '';
+                gate = el('div', { id: 'editGate' }, [el('div', { className: 'ed-box' }, [
+                    el('h3', { textContent: (card ? 'Edit card' : 'New card') + (where ? ' — ' + where : '') }),
+                    lT, lD, lL, lI, err, row
+                ])]);
+                document.body.append(gate);
+                cancel.addEventListener('click', closeGate);
+                ok.addEventListener('click', () => {
+                    const v = { title: title.value.trim(), desc: desc.value.trim(), link: link.value.trim(), thumb: thumb.value.trim() };
+                    if (!v.title) { err.textContent = 'Give it a title.'; title.focus(); return; }
+                    if (!v.link) { err.textContent = 'Add a link (a page like mygame.html, or a full https:// address).'; link.focus(); return; }
+                    if (/^\s*javascript:/i.test(v.link)) { err.textContent = 'That link type isn’t allowed.'; return; }
+                    const a = card || document.createElement('a');
+                    fillCard(a, v);
+                    if (!card) {
+                        grid.append(a);
+                        a.append(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag card' }));
+                        a.lastChild.dataset.kind = 'card';
+                    }
+                    closeGate(); updateDirty();
+                    msg((card ? 'Card updated.' : 'Card added.') + ' Tap Save to GitHub when you’re done.');
+                });
+                gate.addEventListener('keydown', e => { if (e.key === 'Escape') closeGate(); });
+                title.focus();
+            }
+
+            // In edit mode, tapping a card opens its editor instead of the link
+            projects.addEventListener('click', e => {
+                if (!editing) return;
+                e.preventDefault();
+                if (busy || e.target.closest('.edit-handle')) return;
+                const add = e.target.closest('.ed-add');
+                if (add) { openCardForm(add.closest('.proj-section').querySelector('.card-grid'), null); return; }
+                const card = e.target.closest('.game-card');
+                if (card) openCardForm(card.parentNode, card);
+            }, true);
             projects.addEventListener('dragstart', e => { if (editing) e.preventDefault(); });
 
             // ---------- Dragging (mouse, touch and pen) ----------
