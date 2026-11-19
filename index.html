@@ -96,6 +96,16 @@
 
             /* Each section = heading + its cards, so a heading drags its cards along */
             body:not(.editing) .proj-section:not(:has(.game-card)) { display: none; }
+            body:not(.editing) .proj-section.tab-off { display: none; }
+            #siteTabs { align-self: stretch; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+            #siteTabs a {
+                display: flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px;
+                font-size: 15px; font-weight: 700; color: #ccc; background: rgba(255,255,255,0.06);
+                border: 1px solid rgba(255,255,255,0.14); -webkit-tap-highlight-color: transparent;
+            }
+            #siteTabs a.on { background: var(--accent-btn); border-color: var(--accent-btn); color: #fff; }
+            body.editing #siteTabs, body.editing #tabEmpty { display: none; }
+            #tabEmpty { font-size: 15px; color: #888; margin: 1rem 0; }
             #projects, .proj-section { align-self: stretch; display: flex; flex-direction: column; gap: 0.6rem; }
 
             /* ===== Owner-only edit mode (open index.html#edit). Nothing below shows for visitors. ===== */
@@ -173,6 +183,12 @@
     <body>
         <header style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; text-align: center;">
             <!-- Thumbnails live in assets/media/thumbs/; a missing one just leaves the card empty -->
+            <nav id="siteTabs" aria-label="Sections">
+                <a href="#" data-tab="projects">Projects</a>
+                <a href="#art2019" data-tab="art2019">My Art (2019)</a>
+                <a href="#aiart" data-tab="aiart">AI Art</a>
+            </nav>
+            <p id="tabEmpty" hidden>Nothing here yet.</p>
             <!-- PROJECTS:START - reorder at index.html#edit; keep these two marker lines -->
             <div id="projects">
                 <section class="proj-section">
@@ -245,12 +261,12 @@
                         <a href="https://github.com/liangforstudy/moonlight-headless-patch" class="game-card"><img src="assets/media/thumbs/moonlight-headless-patch.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Moonlight Headless Patch</div><div class="card-desc">Lets Supplementaries and other Moonlight mods run in HeadlessMC. Fabric 1.21.1.</div></div></a>
                     </div>
                 </section>
-                <section class="proj-section">
-                    <h2 class="card-section">Hand-Drawn Art (2019)</h2>
+                <section class="proj-section" data-tab="art2019">
+                    <h2 class="card-section">My Art (2019)</h2>
                     <div class="card-grid">
                     </div>
                 </section>
-                <section class="proj-section">
+                <section class="proj-section" data-tab="aiart">
                     <h2 class="card-section">AI Art</h2>
                     <div class="card-grid">
                     </div>
@@ -270,6 +286,32 @@
         </div>
 
         <a href="assets/media/Videos/Shaymin_explosion_racist.mp4" style="display: inline-block; margin-top: 1rem; font-size: 0.6rem;" class="secondary-btn">Download video</a>
+
+        <script>
+        (() => {
+            const TABS = ['projects', 'art2019', 'aiart'];
+            function show() {
+                const h = location.hash.slice(1);
+                const tab = TABS.includes(h) ? h : 'projects';
+                let any = false;
+                document.querySelectorAll('#projects > .proj-section').forEach(sec => {
+                    const on = (sec.dataset.tab || 'projects') === tab;
+                    sec.classList.toggle('tab-off', !on);
+                    if (on && sec.querySelector('.game-card')) any = true;
+                });
+                document.querySelectorAll('#siteTabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
+                document.getElementById('tabEmpty').hidden = any;
+            }
+            document.querySelectorAll('#siteTabs a').forEach(a => a.addEventListener('click', e => {
+                e.preventDefault();
+                const t = a.dataset.tab;
+                history.replaceState(null, '', t === 'projects' ? location.pathname + location.search : '#' + t);
+                show();
+            }));
+            window.addEventListener('hashchange', show);
+            show();
+        })();
+        </script>
 
         <script>
         /* Owner-only edit mode. Open index.html#edit to drag cards and section headings around.
@@ -304,7 +346,7 @@
                 out += I + '<div id="projects">\n';
                 box.querySelectorAll(':scope > .proj-section').forEach(sec => {
                     const h = sec.querySelector(':scope > .card-section');
-                    out += I + '    <section class="proj-section">\n';
+                    out += I + '    <section class="proj-section"' + (sec.dataset.tab ? ' data-tab="' + sec.dataset.tab.replace(/[^a-z0-9-]/gi, '') + '"' : '') + '>\n';
                     if (h) out += I + '        ' + cleanHTML(h) + '\n';
                     out += I + '        <div class="card-grid">\n';
                     sec.querySelectorAll('.card-grid > .game-card').forEach(a => { out += I + '            ' + cleanHTML(a) + '\n'; });
@@ -533,7 +575,9 @@
                 const [lI, thumb] = field('Thumbnail (optional)', img ? img.getAttribute('src') : '', 'assets/media/thumbs/my-game.png');
                 let thumbTouched = !!card;
                 thumb.addEventListener('input', () => { thumbTouched = true; });
-                title.addEventListener('input', () => { if (!thumbTouched) thumb.value = title.value.trim() ? 'assets/media/thumbs/' + slug(title.value) + '.png' : ''; });
+                const isImg = v => /\.(png|jpe?g|gif|webp|avif)$/i.test(v.trim());
+                link.addEventListener('input', () => { if (!thumbTouched && isImg(link.value)) thumb.value = link.value.trim(); });
+                title.addEventListener('input', () => { if (!thumbTouched && !isImg(link.value)) thumb.value = title.value.trim() ? 'assets/media/thumbs/' + slug(title.value) + '.png' : ''; });
                 const err = el('div', { className: 'ed-err' });
                 const ok = el('button', { className: 'ed-btn primary', textContent: card ? 'Update card' : 'Add card' });
                 const cancel = el('button', { className: 'ed-btn', textContent: 'Cancel' });
