@@ -140,7 +140,7 @@
                 box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); background-color: #1a1a1a; border-radius: 12px;
             }
             h2.drag-ghost { padding: 0 10px; background: #2a2a30; }
-            #projects.sorting-sections .card-grid, #projects.sorting-sections .ed-add { display: none !important; }
+            #projects.sorting-sections .card-grid, #projects.sorting-sections .ed-add-row { display: none !important; }
             #projects.sorting-sections .card-section::after { content: attr(data-count); margin-left: auto; font-size: 13px; font-weight: 400; color: #999; }
 
             #editBar {
@@ -185,6 +185,15 @@
                 font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
             }
             body.editing .ed-add { display: block; }
+            .ed-add-row { display: none; }
+            body.editing .ed-add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+            #editOpen {
+                position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 800;
+                min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 22px;
+                border: 1px solid #444; background: rgba(30, 30, 34, 0.9); color: #eee;
+                font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+            }
+            body.editing #editOpen { display: none; }
             body.editing .game-card { cursor: pointer; }
             .drop-target { outline: 3px solid #5865F2 !important; outline-offset: 3px; }
             #lookPanel {
@@ -509,7 +518,11 @@
                     a.lastChild.dataset.kind = 'card';
                 });
                 projects.querySelectorAll(':scope > .proj-section').forEach(sec => {
-                    sec.append(el('button', { type: 'button', className: 'ed-add', textContent: '+ Add card' }));
+                    const pick = el('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
+                    const addImgs = el('button', { type: 'button', className: 'ed-add ed-add-imgs', textContent: '+ Add images' });
+                    pick.addEventListener('change', () => { const f = [...(pick.files || [])]; pick.value = ''; if (f.length) addImages(sec, f); });
+                    addImgs.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (!busy && !gate) pick.click(); });
+                    sec.append(el('div', { className: 'ed-add-row' }, [el('button', { type: 'button', className: 'ed-add', textContent: '+ Add card' }), addImgs, pick]));
                 });
             }
             function enterEdit() {
@@ -523,13 +536,13 @@
                 const forgetBtn = el('button', { className: 'ed-btn' });
                 saveBtn.addEventListener('click', save);
                 armed(discardBtn, 'Discard', 'Tap again to discard', () => location.reload());
-                armed(forgetBtn, 'Log out here', 'Tap again to log out this device', () => { lsSet(TOKEN_KEY, null); exitEdit(true); });
+                armed(forgetBtn, 'Log out here', 'Tap again to log out this device', () => { lsSet(TOKEN_KEY, null); const o = document.getElementById('editOpen'); if (o) o.remove(); exitEdit(true); });
                 doneBtn.addEventListener('click', () => {
                     if (isDirty()) { msg('You have unsaved changes. Save them, or tap Discard.'); return; }
                     exitEdit(false);
                 });
-                const lookBtn = el('button', { className: 'ed-btn', textContent: 'Look' });
-                lookBtn.addEventListener('click', toggleLook);
+                const lookBtn = el('button', { type: 'button', className: 'ed-btn', textContent: 'Look' });
+                lookBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); toggleLook(); });
                 bar = el('div', { id: 'editBar' }, [msgEl, saveBtn, discardBtn, lookBtn, doneBtn, forgetBtn]);
                 document.body.append(bar);
                 updateDirty();
@@ -558,7 +571,7 @@
                 if (force && isDirty()) { location.href = location.pathname + location.search; return; }
                 editing = false; token = null;
                 document.body.classList.remove('editing');
-                projects.querySelectorAll('.edit-handle, .ed-add').forEach(h => h.remove());
+                projects.querySelectorAll('.edit-handle, .ed-add-row').forEach(h => h.remove());
                 if (bar) { bar.remove(); bar = null; }
                 leaveHash();
             }
@@ -768,12 +781,17 @@
                 if (!editing || !hasFiles(e)) return;
                 e.preventDefault();
                 const t = dropEl; setDrop(null);
+                if (t) addImages(t, [...e.dataTransfer.files]);
+            });
+            async function addImages(t, all) {
                 if (!t || busy || gate) return;
-                const files = [...e.dataTransfer.files].filter(f => /^image\//.test(f.type));
-                if (!files.length) { msg('Drop image files (PNG, JPG, GIF, WebP).'); return; }
+                let files = all.filter(f => /^image\//.test(f.type));
+                if (!files.length) { msg('Pick image files (PNG, JPG, GIF, WebP).'); return; }
                 const isCard = t.classList.contains('game-card');
                 const grid = isCard ? t.parentNode : t.querySelector('.card-grid');
                 const art = !!grid.closest('.proj-section[data-tab]');
+                let note = '';
+                if (!art && !isCard && files.length > 1) { files = files.slice(0, 1); note = ' Project cards need a link each, so only the first image was used.'; }
                 busy = true; saveBtn.disabled = discardBtn.disabled = true;
                 let done = 0, lastNew = null;
                 try {
@@ -791,17 +809,18 @@
                         done++;
                     }
                     busy = false; updateDirty();
-                    if (!isCard && !art && lastNew) { openCardForm(grid, lastNew); msg('Image uploaded. Add a link for the new card.'); }
+                    if (!isCard && !art && lastNew) { openCardForm(grid, lastNew); msg('Image uploaded. Add a link for the new card.' + note); }
                     else msg((isCard ? 'Image swapped.' : done + ' card' + (done === 1 ? '' : 's') + ' added.') + ' Tap Save to GitHub when you\u2019re done.');
                 } catch (err) {
                     busy = false; updateDirty();
                     msg('Upload stopped after ' + done + '. ' + friendly(err));
                 }
-            });
+            }
 
             // In edit mode, tapping a card opens its editor instead of the link
             projects.addEventListener('click', e => {
                 if (!editing) return;
+                if (e.target.closest('.ed-add-imgs') || e.target.closest('input[type=file]')) return;
                 e.preventDefault();
                 if (busy || e.target.closest('.edit-handle')) return;
                 const add = e.target.closest('.ed-add');
@@ -931,6 +950,11 @@
                 updateDirty();
             }
 
+            if (lsGet(TOKEN_KEY)) {
+                const open = el('button', { type: 'button', id: 'editOpen', textContent: 'Edit' });
+                open.addEventListener('click', () => { if (location.hash === '#edit') openEditor(); else location.hash = 'edit'; });
+                document.body.append(open);
+            }
             window.addEventListener('hashchange', () => { if (location.hash === '#edit') openEditor(); });
             if (location.hash === '#edit') openEditor();
         })();
