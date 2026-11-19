@@ -92,74 +92,148 @@
             }
 
             img { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
+            .game-card img[hidden] { display: none; }
+
+            /* Each section = heading + its cards, so a heading drags its cards along */
+            #projects, .proj-section { align-self: stretch; display: flex; flex-direction: column; gap: 0.6rem; }
+
+            /* ===== Owner-only edit mode (open index.html#edit). Nothing below shows for visitors. ===== */
+            .edit-handle { display: none; }
+            body.editing { padding-bottom: 110px; }
+            body.editing .edit-handle {
+                display: flex; align-items: center; justify-content: center;
+                width: 44px; height: 44px; flex: 0 0 44px; box-sizing: border-box;
+                border-radius: 10px; background: rgba(20, 20, 24, 0.85); border: 1px solid #555;
+                color: #ddd; font-size: 22px; line-height: 1; cursor: grab;
+                touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+            }
+            body.editing .game-card .edit-handle { position: absolute; top: 6px; right: 6px; z-index: 2; }
+            body.editing .card-section { display: flex; align-items: center; gap: 10px; }
+            body.editing .proj-section { border: 1px dashed #3a3a3a; border-radius: 14px; padding: 10px; }
+            body.editing .card-grid { min-height: 90px; }
+            body.editing .game-card:active { transform: none; }
+            body.editing .game-card:hover img { transform: none; }
+            body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+            .drag-source { opacity: 0.35; outline: 2px dashed #5865F2; outline-offset: 2px; }
+            .drag-ghost {
+                position: fixed !important; left: 0; top: 0; z-index: 1000; margin: 0 !important;
+                pointer-events: none; box-sizing: border-box; opacity: 0.95;
+                box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); background-color: #1a1a1a; border-radius: 12px;
+            }
+            h2.drag-ghost { padding: 0 10px; background: #2a2a30; }
+            #projects.sorting-sections .card-grid { display: none; }
+            #projects.sorting-sections .card-section::after { content: attr(data-count); margin-left: auto; font-size: 13px; font-weight: 400; color: #999; }
+
+            #editBar {
+                position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+                display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+                padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+                background: #18181c; border-top: 1px solid #333; font-size: 14px; text-align: left;
+            }
+            #editBar .ed-msg { flex: 1 1 200px; color: #bbb; line-height: 1.35; }
+            .ed-btn {
+                min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 10px;
+                border: 1px solid #444; background: #2a2a30; color: #eee;
+                font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+            }
+            .ed-btn.primary { background: #5865F2; border-color: #5865F2; color: #fff; }
+            .ed-btn.armed { background: #b3261e; border-color: #b3261e; color: #fff; }
+            .ed-btn:disabled { opacity: 0.45; cursor: default; }
+            #editGate {
+                position: fixed; inset: 0; z-index: 1100; background: rgba(0, 0, 0, 0.7);
+                display: flex; align-items: center; justify-content: center; padding: 16px;
+            }
+            #editGate .ed-box {
+                width: 100%; max-width: 460px; box-sizing: border-box; padding: 18px;
+                background: #1e1e22; border: 1px solid #3a3a3a; border-radius: 14px;
+                font-size: 14px; line-height: 1.45; text-align: left; color: #ddd;
+            }
+            #editGate h3 { margin: 0 0 8px; font-size: 18px; color: #fff; }
+            #editGate a { color: #8ea1ff; text-decoration: underline; }
+            #editGate input {
+                width: 100%; box-sizing: border-box; min-height: 44px; margin: 10px 0;
+                padding: 8px 12px; font-size: 16px; /* 16px stops iOS focus-zoom */
+                background: #121214; color: #fff; border: 1px solid #444; border-radius: 10px;
+            }
+            #editGate .ed-row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+            #editGate .ed-err { color: #ff8a80; min-height: 1.2em; }
         </style>
     </head>
     <body>
         <header style="display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; text-align: center;">
             <!-- Thumbnails live in assets/media/thumbs/; a missing one just leaves the card empty -->
-            <h2 class="card-section">Games</h2>
-            <div class="card-grid">
-                <a href="pixel.html" class="game-card"><img src="assets/media/thumbs/pixel.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Pixel Art</div><div class="card-desc">Draw and animate pixel art right in your browser.</div></div></a>
-                <a href="centaur.html" class="game-card"><img src="assets/media/thumbs/centaur.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Infinite Digging (beta)</div><div class="card-desc">A smooth voxel sandbox. Dig tunnels and mold the ground.</div></div></a>
-                <a href="match3burger.html" class="game-card"><img src="assets/media/thumbs/match3burger.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Match Burgers!</div><div class="card-desc">A match-3 puzzle game with burgers.</div></div></a>
-                <a href="stackup.html" class="game-card"><img src="assets/media/thumbs/stackup.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Stackup</div><div class="card-desc">A simple stacking game. How high can you go?</div></div></a>
-                <a href="https://liangforstudy.github.io/Device_Knight/" class="game-card"><img src="assets/media/thumbs/device_knight.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">DEVICE_KNIGHT</div><div class="card-desc"> A fork of DEVICE_KNIGHT that fixes the page zooming in on iOS Safari during play.</div></div></a>
-             </div>
-
-            <h2 class="card-section">Fun Tools &amp; Demos</h2>
-            <div class="card-grid">
-                <a href="Mixmo.html" class="game-card"><img src="assets/media/thumbs/mixmo.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Mixmo (Gait Workshop)</div><div class="card-desc">Watch the walk cycle of a three-legged sergal and try different gaits.</div></div></a>
-                <a href="charactor.html" class="game-card"><img src="assets/media/thumbs/charactor.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Character Creator</div><div class="card-desc">Create your own character.</div></div></a>
-                <a href="https://liangforstudy.github.io/fla-viewer-fix/" class="game-card"><img src="assets/media/thumbs/fla-viewer.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Flash 8 Project Viewer</div><div class="card-desc">Open and view old Flash 8 project files.</div></div></a>
-                <a href="premerepro.html" class="game-card"><img src="assets/media/thumbs/premerepro.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Video Editor</div><div class="card-desc">Cut and edit videos in the browser.</div></div></a>
-                <a href="greninja.html" class="game-card"><img src="assets/media/thumbs/greninja.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Greninja (wip!!)</div><div class="card-desc">A Greninja game, still in progress.</div></div></a>
-                
+            <!-- PROJECTS:START - reorder at index.html#edit; keep these two marker lines -->
+            <div id="projects">
+                <section class="proj-section">
+                    <h2 class="card-section">Games</h2>
+                    <div class="card-grid">
+                        <a href="pixel.html" class="game-card"><img src="assets/media/thumbs/pixel.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Pixel Art</div><div class="card-desc">Draw and animate pixel art right in your browser.</div></div></a>
+                        <a href="centaur.html" class="game-card"><img src="assets/media/thumbs/centaur.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Infinite Digging (beta)</div><div class="card-desc">A smooth voxel sandbox. Dig tunnels and mold the ground.</div></div></a>
+                        <a href="match3burger.html" class="game-card"><img src="assets/media/thumbs/match3burger.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Match Burgers!</div><div class="card-desc">A match-3 puzzle game with burgers.</div></div></a>
+                        <a href="stackup.html" class="game-card"><img src="assets/media/thumbs/stackup.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Stackup</div><div class="card-desc">A simple stacking game. How high can you go?</div></div></a>
+                        <a href="https://liangforstudy.github.io/Device_Knight/" class="game-card"><img src="assets/media/thumbs/device_knight.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">DEVICE_KNIGHT</div><div class="card-desc">A fork of DEVICE_KNIGHT that fixes the page zooming in on iOS Safari during play.</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">Fun Tools &amp; Demos</h2>
+                    <div class="card-grid">
+                        <a href="Mixmo.html" class="game-card"><img src="assets/media/thumbs/mixmo.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Mixmo (Gait Workshop)</div><div class="card-desc">Watch the walk cycle of a three-legged sergal and try different gaits.</div></div></a>
+                        <a href="charactor.html" class="game-card"><img src="assets/media/thumbs/charactor.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Character Creator</div><div class="card-desc">Create your own character.</div></div></a>
+                        <a href="https://liangforstudy.github.io/fla-viewer-fix/" class="game-card"><img src="assets/media/thumbs/fla-viewer.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Flash 8 Project Viewer</div><div class="card-desc">Open and view old Flash 8 project files.</div></div></a>
+                        <a href="premerepro.html" class="game-card"><img src="assets/media/thumbs/premerepro.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Video Editor</div><div class="card-desc">Cut and edit videos in the browser.</div></div></a>
+                        <a href="greninja.html" class="game-card"><img src="assets/media/thumbs/greninja.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Greninja (wip!!)</div><div class="card-desc">A Greninja game, still in progress.</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">In-House Software</h2>
+                    <div class="card-grid">
+                        <a href="subway.html" class="game-card"><img src="assets/media/thumbs/subway.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Subway Map Editor</div><div class="card-desc">Design your own transit maps.</div></div></a>
+                        <a href="soup-texture-bench.html" class="game-card"><img src="assets/media/thumbs/soup-texture-bench.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Soup Texture Bench</div><div class="card-desc">Software I used to Make the Ocean-Soup Mod a reality.</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">KubeJS Scripts</h2>
+                    <div class="card-grid">
+                        <a href="https://github.com/liangforstudy/ocean-soup" class="game-card"><img src="assets/media/thumbs/ocean-soup.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Ocean Soup</div><div class="card-desc">Make Soup! Flood the ocean with soup! For Minecraft Java 1.20.1 and 1.21.1.</div></div></a>
+                        <a href="https://github.com/liangforstudy/jei-remember" class="game-card"><img src="assets/media/thumbs/jei-remember.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">JEI Remember</div><div class="card-desc">Makes JEI remember if its item list was shown or hidden.</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">Minecraft Java Mods</h2>
+                    <div class="card-grid">
+                        <a href="https://github.com/liangforstudy/Fast-Creative-Copy-Paste" class="game-card"><img src="assets/media/thumbs/fast-creative-copy-paste.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Fast Creative Copy Paste</div><div class="card-desc">Factorio-style copy and paste.</div></div></a>
+                        <a href="https://github.com/liangforstudy/Chest_Tracker" class="game-card"><img src="assets/media/thumbs/chest-tracker.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Chest Tracker</div><div class="card-desc">Search your stash on 9b9t, including entities!</div></div></a>
+                        <a href="https://github.com/liangforstudy/Minable-Mobs" class="game-card"><img src="assets/media/thumbs/minable-mobs.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Minable Mobs</div><div class="card-desc">Mine any mob like a block with a pickaxe. Inspired by that one cursed Dream thumbnail.</div></div></a>
+                        <a href="https://github.com/liangforstudy/copper-before-iron" class="game-card"><img src="assets/media/thumbs/copper-before-iron.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Copper Before Iron</div><div class="card-desc">You now need a copper pickaxe to mine iron ore, and iron only smelts in a blast furnace.</div></div></a>
+                        <a href="https://github.com/liangforstudy/bright-soul-lanterns" class="game-card"><img src="assets/media/thumbs/bright-soul-lanterns.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Bright Soul Lanterns</div><div class="card-desc">Help! My soul lanterns are too dark!!</div></div></a>
+                        <a href="https://github.com/liangforstudy/sv-voice-changer" class="game-card"><img src="assets/media/thumbs/sv-voice-changer.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">SV Voice Changer</div><div class="card-desc">A backport of the Simple Voice Chat voice changer addon to 1.20.1.</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">Minecraft Bedrock Add-ons</h2>
+                    <div class="card-grid">
+                        <a href="https://github.com/liangforstudy/ParrotPartyRange" class="game-card"><img src="assets/media/thumbs/parrot-party-range.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Parrot Party Range</div><div class="card-desc">The whole room now grooves instead of pretending to be hard at hearing.</div></div></a>
+                        <a href="https://github.com/liangforstudy/NoJumpSniffers" class="game-card"><img src="assets/media/thumbs/no-jump-sniffers.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">No Jump Sniffers</div><div class="card-desc">Sniffers: grounded. Literally.</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">Datapacks &amp; Resource Packs</h2>
+                    <div class="card-grid">
+                        <a href="https://github.com/liangforstudy/NetherEndClock" class="game-card"><img src="assets/media/thumbs/nether-end-clock.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Nether End Clock</div><div class="card-desc">Finally! Working clocks in the Nether!</div></div></a>
+                        <a href="https://github.com/liangforstudy/MinecraftChinese" class="game-card"><img src="assets/media/thumbs/minecraft-chinese.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Minecraft Chinese</div><div class="card-desc">Changes the death screen title from 你死了！ to 你死定了！</div></div></a>
+                    </div>
+                </section>
+                <section class="proj-section">
+                    <h2 class="card-section">Small Utilities</h2>
+                    <div class="card-grid">
+                        <a href="https://github.com/liangforstudy/fileCompare" class="game-card"><img src="assets/media/thumbs/file-compare.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">fileCompare</div><div class="card-desc">A stupidly simple Windows app that checks if two files are exactly the same using SHA256.</div></div></a>
+                        <a href="https://github.com/liangforstudy/gdocs-anonymous-pokemon" class="game-card"><img src="assets/media/thumbs/gdocs-anonymous-pokemon.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">GDocs Anonymous Pokémon</div><div class="card-desc">Replaces the anonymous animals with anonymous Pokémon!</div></div></a>
+                        <a href="https://github.com/liangforstudy/minecraft-window-grid" class="game-card"><img src="assets/media/thumbs/minecraft-window-grid.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Minecraft Window Grid</div><div class="card-desc">A simple script that tiles running Minecraft windows into a grid on Windows.</div></div></a>
+                        <a href="https://github.com/liangforstudy/moonlight-headless-patch" class="game-card"><img src="assets/media/thumbs/moonlight-headless-patch.png" alt="" onerror="this.hidden=true"><div class="card-text"><div class="card-title">Moonlight Headless Patch</div><div class="card-desc">Lets Supplementaries and other Moonlight mods run in HeadlessMC. Fabric 1.21.1.</div></div></a>
+                    </div>
+                </section>
             </div>
-
-            <h2 class="card-section">In-House Software</h2>
-            <div class="card-grid">
-                <a href="subway.html" class="game-card"><img src="assets/media/thumbs/subway.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Subway Map Editor</div><div class="card-desc">Design your own transit maps.</div></div></a>
-                
-                <a href="soup-texture-bench.html" class="game-card"><img src="assets/media/thumbs/soup-texture-bench.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Soup Texture Bench</div><div class="card-desc">Software I used to Make the Ocean-Soup Mod a reality.</div></div></a>
-                
-            </div>
-            
-
-            <h2 class="card-section">KubeJS Scripts</h2>
-            <div class="card-grid">
-                <a href="https://github.com/liangforstudy/ocean-soup" class="game-card"><img src="assets/media/thumbs/ocean-soup.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Ocean Soup</div><div class="card-desc">Make Soup! Flood the ocean with soup! For Minecraft Java 1.20.1 and 1.21.1.</div></div></a>
-                <a href="https://github.com/liangforstudy/jei-remember" class="game-card"><img src="assets/media/thumbs/jei-remember.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">JEI Remember</div><div class="card-desc">Makes JEI remember if its item list was shown or hidden.</div></div></a>
-            </div>
-
-            <h2 class="card-section">Minecraft Java Mods</h2>
-            <div class="card-grid">
-                <a href="https://github.com/liangforstudy/Fast-Creative-Copy-Paste" class="game-card"><img src="assets/media/thumbs/fast-creative-copy-paste.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Fast Creative Copy Paste</div><div class="card-desc">Factorio-style copy and paste.</div></div></a>
-                <a href="https://github.com/liangforstudy/Chest_Tracker" class="game-card"><img src="assets/media/thumbs/chest-tracker.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Chest Tracker</div><div class="card-desc">Search your stash on 9b9t, including entities!</div></div></a>
-                <a href="https://github.com/liangforstudy/Minable-Mobs" class="game-card"><img src="assets/media/thumbs/minable-mobs.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Minable Mobs</div><div class="card-desc">Mine any mob like a block with a pickaxe. Inspired by that one cursed Dream thumbnail.</div></div></a>
-                <a href="https://github.com/liangforstudy/copper-before-iron" class="game-card"><img src="assets/media/thumbs/copper-before-iron.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Copper Before Iron</div><div class="card-desc">You now need a copper pickaxe to mine iron ore, and iron only smelts in a blast furnace.</div></div></a>
-                <a href="https://github.com/liangforstudy/bright-soul-lanterns" class="game-card"><img src="assets/media/thumbs/bright-soul-lanterns.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Bright Soul Lanterns</div><div class="card-desc">Help! My soul lanterns are too dark!!</div></div></a>
-                <a href="https://github.com/liangforstudy/sv-voice-changer" class="game-card"><img src="assets/media/thumbs/sv-voice-changer.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">SV Voice Changer</div><div class="card-desc">A backport of the Simple Voice Chat voice changer addon to 1.20.1.</div></div></a>
-            </div>
-
-            <h2 class="card-section">Minecraft Bedrock Add-ons</h2>
-            <div class="card-grid">
-                <a href="https://github.com/liangforstudy/ParrotPartyRange" class="game-card"><img src="assets/media/thumbs/parrot-party-range.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Parrot Party Range</div><div class="card-desc">The whole room now grooves instead of pretending to be hard at hearing.</div></div></a>
-                <a href="https://github.com/liangforstudy/NoJumpSniffers" class="game-card"><img src="assets/media/thumbs/no-jump-sniffers.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">No Jump Sniffers</div><div class="card-desc">Sniffers: grounded. Literally.</div></div></a>
-            </div>
-
-            <h2 class="card-section">Datapacks &amp; Resource Packs</h2>
-            <div class="card-grid">
-                <a href="https://github.com/liangforstudy/NetherEndClock" class="game-card"><img src="assets/media/thumbs/nether-end-clock.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Nether End Clock</div><div class="card-desc">Finally! Working clocks in the Nether!</div></div></a>
-                <a href="https://github.com/liangforstudy/MinecraftChinese" class="game-card"><img src="assets/media/thumbs/minecraft-chinese.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Minecraft Chinese</div><div class="card-desc">Changes the death screen title from 你死了！ to 你死定了！</div></div></a>
-            </div>
-
-            <h2 class="card-section">Small Utilities</h2>
-            <div class="card-grid">
-                <a href="https://github.com/liangforstudy/fileCompare" class="game-card"><img src="assets/media/thumbs/file-compare.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">fileCompare</div><div class="card-desc">A stupidly simple Windows app that checks if two files are exactly the same using SHA256.</div></div></a>
-                <a href="https://github.com/liangforstudy/gdocs-anonymous-pokemon" class="game-card"><img src="assets/media/thumbs/gdocs-anonymous-pokemon.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">GDocs Anonymous Pokémon</div><div class="card-desc">Replaces the anonymous animals with anonymous Pokémon!</div></div></a>
-                <a href="https://github.com/liangforstudy/minecraft-window-grid" class="game-card"><img src="assets/media/thumbs/minecraft-window-grid.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Minecraft Window Grid</div><div class="card-desc">A simple script that tiles running Minecraft windows into a grid on Windows.</div></div></a>
-                <a href="https://github.com/liangforstudy/moonlight-headless-patch" class="game-card"><img src="assets/media/thumbs/moonlight-headless-patch.png" alt="" onerror="this.remove()"><div class="card-text"><div class="card-title">Moonlight Headless Patch</div><div class="card-desc">Lets Supplementaries and other Moonlight mods run in HeadlessMC. Fabric 1.21.1.</div></div></a>
-            </div>
+            <!-- PROJECTS:END -->
 
             <a href="video.html" class="primary-btn">Join my Discord!</a>
             <a href="video.html" style="color: var(--text); text-decoration: none; font-weight: 700; font-size: 0.6rem;">Please Unmute Video</a>
@@ -173,5 +247,359 @@
         </div>
 
         <a href="assets/media/Videos/Shaymin_explosion_racist.mp4" style="display: inline-block; margin-top: 1rem; font-size: 0.6rem;" class="secondary-btn">Download video</a>
+
+        <script>
+        /* Owner-only edit mode. Open index.html#edit to drag cards and section headings around.
+           Visitors can't change the real site: saving commits to GitHub, which needs a token
+           with write access to this repo, and edit mode won't even open without one. */
+        (() => {
+            const OWNER = 'liangforstudy', REPO = 'liangforstudy.github.io', FILE = 'index.html';
+            const API = 'https://api.github.com/repos/' + OWNER + '/' + REPO;
+            const TOKEN_KEY = 'siteEditToken';
+            const START = '<!-- PROJECTS:START', END = '<!-- PROJECTS:END -->';
+            const projects = document.getElementById('projects');
+            if (!projects) return;
+
+            const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+            const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+
+            // ---------- Turn the cards back into clean HTML (no edit-mode bits) ----------
+            function cleanHTML(el) {
+                const c = el.cloneNode(true);
+                c.querySelectorAll('.edit-handle').forEach(h => h.remove());
+                c.classList.remove('drag-source');
+                if (!c.classList.length) c.removeAttribute('class');
+                c.removeAttribute('data-count');
+                c.querySelectorAll('img[hidden]').forEach(i => i.removeAttribute('hidden'));
+                return c.outerHTML;
+            }
+            function buildRegion(root) {
+                const box = root.querySelector('#projects');
+                if (!box) return null;
+                const I = '            ';
+                let out = '<!-- PROJECTS:START - reorder at index.html#edit; keep these two marker lines -->\n';
+                out += I + '<div id="projects">\n';
+                box.querySelectorAll(':scope > .proj-section').forEach(sec => {
+                    const h = sec.querySelector(':scope > .card-section');
+                    out += I + '    <section class="proj-section">\n';
+                    if (h) out += I + '        ' + cleanHTML(h) + '\n';
+                    out += I + '        <div class="card-grid">\n';
+                    sec.querySelectorAll('.card-grid > .game-card').forEach(a => { out += I + '            ' + cleanHTML(a) + '\n'; });
+                    out += I + '        </div>\n' + I + '    </section>\n';
+                });
+                return out + I + '</div>\n' + I + END;
+            }
+            let baseline = buildRegion(document);   // what the page looked like when it loaded
+
+            // ---------- GitHub API ----------
+            let token = null, branch = 'main';
+            async function gh(path, opts) {
+                opts = opts || {};
+                const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + token };
+                if (opts.body) headers['Content-Type'] = 'application/json';
+                const res = await fetch(API + path, Object.assign({}, opts, { headers, cache: 'no-store' }));
+                let data = null;
+                try { data = await res.json(); } catch (e) {}
+                if (!res.ok) {
+                    const err = new Error((data && data.message) || ('HTTP ' + res.status));
+                    err.status = res.status;
+                    throw err;
+                }
+                return data;
+            }
+            async function checkAccess() {
+                const repo = await gh('');
+                if (!repo.permissions || !repo.permissions.push) {
+                    const e = new Error('This token can’t write to ' + REPO + '.'); e.status = 403; throw e;
+                }
+                branch = repo.default_branch || 'main';
+            }
+            function b64ToText(b64) {
+                const bin = atob(b64.replace(/\s/g, ''));
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                return new TextDecoder().decode(bytes);
+            }
+            function textToB64(text) {
+                const bytes = new TextEncoder().encode(text);
+                let bin = '';
+                for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+                return btoa(bin);
+            }
+            function friendly(err) {
+                if (err.status === 401) return 'GitHub rejected the token (expired or wrong?).';
+                if (err.status === 403 || err.status === 404) return err.message + ' Check the token has Contents: Read and write on ' + REPO + '.';
+                if (err.status === 409) return 'GitHub says the file changed in the meantime. Reload and try again.';
+                if (!err.status) return 'Couldn’t connect to GitHub. Check your internet and try again.';
+                return 'GitHub error: ' + err.message;
+            }
+
+            // ---------- Small UI helpers ----------
+            function el(tag, props, kids) {
+                const n = document.createElement(tag);
+                Object.assign(n, props || {});
+                (kids || []).forEach(k => n.append(k));
+                return n;
+            }
+            // Two-tap confirmation instead of browser confirm()
+            function armed(btn, label, armedLabel, action) {
+                let timer = null;
+                btn.textContent = label;
+                btn.addEventListener('click', () => {
+                    if (btn.classList.contains('armed')) {
+                        clearTimeout(timer); btn.classList.remove('armed'); btn.textContent = label; action();
+                        return;
+                    }
+                    btn.classList.add('armed'); btn.textContent = armedLabel;
+                    timer = setTimeout(() => { btn.classList.remove('armed'); btn.textContent = label; }, 3000);
+                });
+            }
+
+            // ---------- Gate: only someone with a write token gets in ----------
+            let gate = null;
+            function closeGate() { if (gate) { gate.remove(); gate = null; } }
+            function leaveHash() { history.replaceState(null, '', location.pathname + location.search); }
+            function showGate(errText) {
+                closeGate();
+                const input = el('input', { type: 'password', placeholder: 'github_pat_…', autocomplete: 'off', spellcheck: false });
+                const err = el('div', { className: 'ed-err', textContent: errText || '' });
+                const go = el('button', { className: 'ed-btn primary', textContent: 'Unlock' });
+                const cancel = el('button', { className: 'ed-btn', textContent: 'Cancel' });
+                const link = el('a', { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener', textContent: 'Make a fine-grained token' });
+                const box = el('div', { className: 'ed-box' }, [
+                    el('h3', { textContent: 'Edit mode' }),
+                    el('div', { textContent: 'Only someone who can write to the ' + REPO + ' repo can edit this page. Paste a GitHub token to unlock it. It is kept only in this browser.' }),
+                    el('div', {}, [link, document.createTextNode(' — Repository access: only ' + REPO + ', Permissions: Contents → Read and write.')]),
+                    input, err, el('div', { className: 'ed-row' }, [cancel, go])
+                ]);
+                gate = el('div', { id: 'editGate' }, [box]);
+                document.body.append(gate);
+                const tryIt = async () => {
+                    const t = input.value.trim();
+                    if (!t) { err.textContent = 'Paste a token first.'; return; }
+                    go.disabled = true; err.textContent = 'Checking with GitHub…';
+                    token = t;
+                    try { await checkAccess(); lsSet(TOKEN_KEY, t); closeGate(); enterEdit(); }
+                    catch (e) { token = null; err.textContent = friendly(e); go.disabled = false; }
+                };
+                go.addEventListener('click', tryIt);
+                input.addEventListener('keydown', e => { if (e.key === 'Enter') tryIt(); });
+                cancel.addEventListener('click', () => { closeGate(); leaveHash(); });
+                input.focus();
+            }
+            async function openEditor() {
+                if (editing || gate) return;
+                const saved = lsGet(TOKEN_KEY);
+                if (!saved) { showGate(); return; }
+                token = saved;
+                try { await checkAccess(); enterEdit(); }
+                catch (e) { token = null; if (e.status === 401) lsSet(TOKEN_KEY, null); showGate(friendly(e)); }
+            }
+
+            // ---------- Edit mode on/off ----------
+            let editing = false, busy = false, bar = null, msgEl = null, saveBtn = null, discardBtn = null;
+            function addHandles() {
+                projects.querySelectorAll('.card-section').forEach(h => {
+                    h.prepend(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag section' }));
+                    h.firstChild.dataset.kind = 'section';
+                });
+                projects.querySelectorAll('.game-card').forEach(a => {
+                    a.append(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag card' }));
+                    a.lastChild.dataset.kind = 'card';
+                });
+            }
+            function enterEdit() {
+                editing = true;
+                document.body.classList.add('editing');
+                addHandles();
+                msgEl = el('div', { className: 'ed-msg' });
+                saveBtn = el('button', { className: 'ed-btn primary', textContent: 'Save to GitHub' });
+                discardBtn = el('button', { className: 'ed-btn' });
+                const doneBtn = el('button', { className: 'ed-btn', textContent: 'Done' });
+                const forgetBtn = el('button', { className: 'ed-btn' });
+                saveBtn.addEventListener('click', save);
+                armed(discardBtn, 'Discard', 'Tap again to discard', () => location.reload());
+                armed(forgetBtn, 'Lock', 'Tap again: forget token', () => { lsSet(TOKEN_KEY, null); exitEdit(true); });
+                doneBtn.addEventListener('click', () => {
+                    if (isDirty()) { msg('You have unsaved changes. Save them, or tap Discard.'); return; }
+                    exitEdit(false);
+                });
+                bar = el('div', { id: 'editBar' }, [msgEl, saveBtn, discardBtn, doneBtn, forgetBtn]);
+                document.body.append(bar);
+                updateDirty();
+            }
+            function exitEdit(force) {
+                if (force && isDirty()) { location.href = location.pathname + location.search; return; }
+                editing = false; token = null;
+                document.body.classList.remove('editing');
+                projects.querySelectorAll('.edit-handle').forEach(h => h.remove());
+                if (bar) { bar.remove(); bar = null; }
+                leaveHash();
+            }
+            function msg(t) { if (msgEl) msgEl.textContent = t; }
+            function isDirty() { return buildRegion(document) !== baseline; }
+            function updateDirty() {
+                const d = isDirty();
+                saveBtn.disabled = !d || busy;
+                discardBtn.disabled = !d || busy;
+                msg(d ? 'Unsaved changes.' : 'Drag the ⠇ handles to move cards and sections.');
+            }
+
+            async function save() {
+                if (busy) return;
+                busy = true; saveBtn.disabled = discardBtn.disabled = true;
+                msg('Saving…');
+                try {
+                    const f = await gh('/contents/' + FILE + '?ref=' + encodeURIComponent(branch));
+                    const text = b64ToText(f.content);
+                    const s = text.indexOf(START), e = text.indexOf(END);
+                    if (s < 0 || e < s) throw Object.assign(new Error('Couldn’t find the PROJECTS markers in index.html on GitHub.'), { status: 1 });
+                    const remote = buildRegion(new DOMParser().parseFromString(text, 'text/html'));
+                    if (remote !== baseline) {
+                        busy = false; updateDirty();
+                        msg('Not saved: the cards on GitHub don’t match this page (GitHub Pages may still be updating, or it was edited elsewhere). Reload in a minute and redo the move.');
+                        return;
+                    }
+                    const region = buildRegion(document);
+                    const next = text.slice(0, s) + region + text.slice(e + END.length);
+                    await gh('/contents/' + FILE, { method: 'PUT', body: JSON.stringify({
+                        message: 'Rearrange homepage projects (edit mode)', content: textToB64(next), sha: f.sha, branch
+                    }) });
+                    baseline = region;
+                    busy = false; updateDirty();
+                    msg('Saved ✓ The live site updates in about a minute.');
+                } catch (err) {
+                    busy = false; updateDirty();
+                    msg('Not saved. ' + friendly(err));
+                }
+            }
+
+            // In edit mode, tapping a card shouldn't open it
+            projects.addEventListener('click', e => { if (editing) e.preventDefault(); }, true);
+            projects.addEventListener('dragstart', e => { if (editing) e.preventDefault(); });
+
+            // ---------- Dragging (mouse, touch and pen) ----------
+            let drag = null;
+            const headingOf = sec => sec.querySelector(':scope > .card-section');
+
+            projects.addEventListener('pointerdown', e => {
+                const handle = e.target.closest('.edit-handle');
+                if (!handle || !editing || busy) return;
+                if (drag) return;                                  // a second finger can't steal the drag
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                e.preventDefault();
+                const kind = handle.dataset.kind;
+                const item = kind === 'section' ? handle.closest('.proj-section') : handle.closest('.game-card');
+                const shown = kind === 'section' ? headingOf(item) : item;
+                const r = shown.getBoundingClientRect();
+                const ghost = shown.cloneNode(true);
+                ghost.classList.add('drag-ghost');
+                ghost.style.width = r.width + 'px';
+                ghost.style.height = r.height + 'px';
+                drag = {
+                    id: e.pointerId, kind, item, ghost, handle,
+                    offX: e.clientX - r.left, offY: e.clientY - r.top, x: e.clientX, y: e.clientY,
+                    parent: item.parentNode, next: item.nextSibling, raf: 0
+                };
+                try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+                document.body.append(ghost);
+                document.body.classList.add('dragging');
+                item.classList.add('drag-source');
+                if (kind === 'section') {
+                    // Fold every section to just its heading so they're easy to reorder
+                    const before = headingOf(item).getBoundingClientRect().top;
+                    projects.querySelectorAll(':scope > .proj-section').forEach(s => {
+                        const n = s.querySelectorAll('.game-card').length, h = headingOf(s);
+                        if (h) h.dataset.count = n + (n === 1 ? ' card' : ' cards');
+                    });
+                    projects.classList.add('sorting-sections');
+                    window.scrollBy(0, headingOf(item).getBoundingClientRect().top - before);
+                }
+                moveGhost();
+                drag.raf = requestAnimationFrame(autoScroll);
+            });
+
+            document.addEventListener('pointermove', e => {
+                if (!drag || e.pointerId !== drag.id) return;
+                e.preventDefault();
+                drag.x = e.clientX; drag.y = e.clientY;
+                moveGhost(); place();
+            });
+            document.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) endDrag(false); });
+            document.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) endDrag(true); });
+            document.addEventListener('keydown', e => { if (drag && e.key === 'Escape') endDrag(true); });
+            // iOS: stop the page scrolling/zooming under a drag
+            document.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+
+            function moveGhost() {
+                drag.ghost.style.transform = 'translate(' + (drag.x - drag.offX) + 'px,' + (drag.y - drag.offY) + 'px) rotate(1.5deg)';
+            }
+            function nextOther(n) {
+                n = n.nextElementSibling;
+                while (n && n === drag.item) n = n.nextElementSibling;
+                return n;
+            }
+            function place() {
+                const x = drag.x, y = drag.y, item = drag.item;
+                const under = document.elementFromPoint(x, y);
+                if (!under || item.contains(under)) return;        // already over its own spot
+                if (drag.kind === 'section') {
+                    const secs = [...projects.querySelectorAll(':scope > .proj-section')].filter(s => s !== item);
+                    let ref = null;
+                    for (const s of secs) { const r = s.getBoundingClientRect(); if (y < r.top + r.height / 2) { ref = s; break; } }
+                    if (item.nextElementSibling !== ref || (ref === null && item !== projects.lastElementChild)) projects.insertBefore(item, ref);
+                    return;
+                }
+                let grid = under.closest('.card-grid');
+                if (!grid) { const sec = under.closest('.proj-section'); if (sec) grid = sec.querySelector('.card-grid'); }
+                if (!grid || !projects.contains(grid)) return;
+                const cards = [...grid.children].filter(c => c.classList.contains('game-card') && c !== item);
+                let ref = null;
+                if (cards.length) {
+                    let best = null, bestD = Infinity;
+                    for (const c of cards) {
+                        const r = c.getBoundingClientRect();
+                        const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
+                        const d = dx * dx + dy * dy;
+                        if (d < bestD) { bestD = d; best = { c, r }; }
+                    }
+                    const r = best.r;
+                    const after = y < r.top ? false : y > r.bottom ? true : x > r.left + r.width / 2;
+                    ref = after ? nextOther(best.c) : best.c;
+                }
+                if (item.parentNode === grid && nextOther(item) === ref && (ref === null || item.nextElementSibling === ref)) return;
+                grid.insertBefore(item, ref);
+            }
+            function autoScroll() {
+                if (!drag) return;
+                const zone = 70, bottom = window.innerHeight - (bar ? bar.offsetHeight : 0);
+                let v = 0;
+                if (drag.y < zone) v = -Math.min(20, Math.ceil((zone - drag.y) / 3));
+                else if (drag.y > bottom - zone) v = Math.min(20, Math.ceil((drag.y - (bottom - zone)) / 3));
+                if (v) { window.scrollBy(0, v); place(); }
+                drag.raf = requestAnimationFrame(autoScroll);
+            }
+            function endDrag(cancel) {
+                const d = drag;
+                cancelAnimationFrame(d.raf);
+                if (cancel) d.parent.insertBefore(d.item, d.next && d.next.parentNode === d.parent ? d.next : null);
+                try { d.handle.releasePointerCapture(d.id); } catch (err) {}
+                d.ghost.remove();
+                d.item.classList.remove('drag-source');
+                document.body.classList.remove('dragging');
+                if (d.kind === 'section') {
+                    projects.classList.remove('sorting-sections');
+                    projects.querySelectorAll('[data-count]').forEach(h => h.removeAttribute('data-count'));
+                    // keep the dropped heading where your finger let go
+                    window.scrollBy(0, headingOf(d.item).getBoundingClientRect().top - (d.y - d.offY));
+                }
+                drag = null;
+                updateDirty();
+            }
+
+            window.addEventListener('hashchange', () => { if (location.hash === '#edit') openEditor(); });
+            if (location.hash === '#edit') openEditor();
+        })();
+        </script>
     </body>
 </html>
