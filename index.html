@@ -179,6 +179,20 @@
             #editGate label { display: block; margin-top: 8px; font-weight: 700; color: #eee; }
             #editGate label input { margin: 4px 0 0; font-weight: 400; }
             #editGate .ed-row .ed-spacer { flex: 1; }
+            #editGate select {
+                width: 100%; box-sizing: border-box; min-height: 44px; margin: 4px 0 0; padding: 8px 12px;
+                font-size: 16px; background: #121214; color: #fff; border: 1px solid #444; border-radius: 10px; font-weight: 400;
+            }
+            #editGate .ed-note { color: #999; font-size: 13px; margin-top: 6px; }
+            .ed-tag { display: none; }
+            body.editing .ed-tag {
+                display: inline-block; margin-left: auto; padding: 2px 10px; border-radius: 10px;
+                border: 1px solid #444; font-size: 12px; font-weight: 400; color: #aaa; white-space: nowrap;
+            }
+            body.editing .card-section { cursor: pointer; }
+            #projects.sorting-sections .ed-tag { display: none !important; }
+            .ed-sec-row { display: none; }
+            body.editing .ed-sec-row { align-self: stretch; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
             .ed-add {
                 display: none; align-self: flex-start; min-height: 44px; padding: 0 16px;
                 border-radius: 10px; border: 1px dashed #666; background: transparent; color: #ccc;
@@ -362,7 +376,7 @@
             // ---------- Turn the cards back into clean HTML (no edit-mode bits) ----------
             function cleanHTML(el) {
                 const c = el.cloneNode(true);
-                c.querySelectorAll('.edit-handle').forEach(h => h.remove());
+                c.querySelectorAll('.edit-handle, .ed-tag').forEach(h => h.remove());
                 c.classList.remove('drag-source');
                 if (!c.classList.length) c.removeAttribute('class');
                 c.removeAttribute('data-count');
@@ -508,22 +522,111 @@
 
             // ---------- Edit mode on/off ----------
             let editing = false, busy = false, bar = null, msgEl = null, saveBtn = null, discardBtn = null;
-            function addHandles() {
-                projects.querySelectorAll('.card-section').forEach(h => {
+            function decorateSection(sec) {
+                const h = headingOf(sec);
+                if (h) {
                     h.prepend(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag section' }));
                     h.firstChild.dataset.kind = 'section';
-                });
+                    h.append(el('span', { className: 'ed-tag', textContent: tabName(sec.dataset.tab) }));
+                }
+                const pick = el('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
+                const addImgs = el('button', { type: 'button', className: 'ed-add ed-add-imgs', textContent: '+ Add images' });
+                pick.addEventListener('change', () => { const f = [...(pick.files || [])]; pick.value = ''; if (f.length) addImages(sec, f); });
+                addImgs.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (!busy && !gate) pick.click(); });
+                sec.append(el('div', { className: 'ed-add-row' }, [el('button', { type: 'button', className: 'ed-add', textContent: '+ Add card' }), addImgs, pick]));
+            }
+            let secRow = null;
+            function addHandles() {
                 projects.querySelectorAll('.game-card').forEach(a => {
                     a.append(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag card' }));
                     a.lastChild.dataset.kind = 'card';
                 });
-                projects.querySelectorAll(':scope > .proj-section').forEach(sec => {
-                    const pick = el('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
-                    const addImgs = el('button', { type: 'button', className: 'ed-add ed-add-imgs', textContent: '+ Add images' });
-                    pick.addEventListener('change', () => { const f = [...(pick.files || [])]; pick.value = ''; if (f.length) addImages(sec, f); });
-                    addImgs.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (!busy && !gate) pick.click(); });
-                    sec.append(el('div', { className: 'ed-add-row' }, [el('button', { type: 'button', className: 'ed-add', textContent: '+ Add card' }), addImgs, pick]));
+                projects.querySelectorAll(':scope > .proj-section').forEach(decorateSection);
+                // One "+ Section" button per tab, below all the sections
+                secRow = el('div', { className: 'ed-sec-row' }, tabList().map(t => {
+                    const b = el('button', { type: 'button', className: 'ed-add', textContent: '+ Section in ' + t.name });
+                    b.addEventListener('click', e => { e.preventDefault(); if (!busy) openSectionForm(null, t.id); });
+                    return b;
+                }));
+                projects.after(secRow);
+            }
+
+            // ---------- Add / rename / move / delete sections ----------
+            function tabList() {
+                return [...document.querySelectorAll('#siteTabs a')].map(a => ({ id: a.dataset.tab, name: a.textContent.trim() }));
+            }
+            function tabName(id) { const t = tabList().find(t => t.id === (id || 'projects')); return t ? t.name : (id || 'Projects'); }
+            const isEdBit = n => n.classList && (n.classList.contains('edit-handle') || n.classList.contains('ed-tag'));
+            function headingText(h) { return [...h.childNodes].filter(n => !isEdBit(n)).map(n => n.textContent).join('').trim(); }
+            function setHeadingText(h, t) {
+                [...h.childNodes].forEach(n => { if (!isEdBit(n)) n.remove(); });
+                h.insertBefore(document.createTextNode(t), h.querySelector('.ed-tag'));
+            }
+            function setSectionTab(sec, tab) {
+                if (tab && tab !== 'projects') sec.dataset.tab = tab; else delete sec.dataset.tab;
+                const tag = sec.querySelector(':scope > .card-section .ed-tag');
+                if (tag) tag.textContent = tabName(tab);
+            }
+            function placeInTab(sec, tab) {
+                // put it after the last section of that tab (or at the end)
+                const same = [...projects.querySelectorAll(':scope > .proj-section')].filter(s => s !== sec && (s.dataset.tab || 'projects') === tab);
+                const last = same[same.length - 1];
+                if (last) last.after(sec); else projects.append(sec);
+            }
+            function openSectionForm(sec, defTab) {
+                if (gate || drag) return;
+                const h = sec && headingOf(sec);
+                const name = el('input', { type: 'text', value: h ? headingText(h) : '', placeholder: 'e.g. Landscapes', spellcheck: false, autocomplete: 'off' });
+                const tabSel = el('select');
+                const cur = sec ? (sec.dataset.tab || 'projects') : (defTab || 'projects');
+                tabList().forEach(t => tabSel.append(el('option', { value: t.id, textContent: t.name, selected: t.id === cur })));
+                const err = el('div', { className: 'ed-err' });
+                const ok = el('button', { className: 'ed-btn primary', textContent: sec ? 'Update section' : 'Add section' });
+                const cancel = el('button', { className: 'ed-btn', textContent: 'Cancel' });
+                const row = el('div', { className: 'ed-row' });
+                if (sec) {
+                    const n = sec.querySelectorAll('.game-card').length;
+                    const del = el('button', { className: 'ed-btn' });
+                    armed(del, 'Delete section', n ? 'Tap again: deletes ' + n + ' card' + (n === 1 ? '' : 's') + ' too' : 'Tap again to delete', () => {
+                        sec.remove(); closeGate(); updateDirty(); msg('Section deleted. Tap Save to GitHub when you\u2019re done.');
+                    });
+                    row.append(del, el('span', { className: 'ed-spacer' }));
+                }
+                row.append(cancel, ok);
+                gate = el('div', { id: 'editGate' }, [el('div', { className: 'ed-box' }, [
+                    el('h3', { textContent: sec ? 'Edit section' : 'New section' }),
+                    el('label', {}, [document.createTextNode('Title'), name]),
+                    el('label', {}, [document.createTextNode('Shows under tab'), tabSel]),
+                    el('div', { className: 'ed-note', textContent: 'Art tabs use the Pinterest-style layout. Empty sections stay hidden from visitors until they have a card.' }),
+                    err, row
+                ])]);
+                document.body.append(gate);
+                cancel.addEventListener('click', closeGate);
+                ok.addEventListener('click', () => {
+                    const t = name.value.trim(), tab = tabSel.value;
+                    if (!t) { err.textContent = 'Give the section a title.'; name.focus(); return; }
+                    if (sec) {
+                        const moved = (sec.dataset.tab || 'projects') !== tab;
+                        setHeadingText(h, t);
+                        setSectionTab(sec, tab);
+                        if (moved) placeInTab(sec, tab);
+                        closeGate(); updateDirty();
+                        msg('Section updated. Tap Save to GitHub when you\u2019re done.');
+                        return;
+                    }
+                    const ns = el('section', { className: 'proj-section' }, [
+                        el('h2', { className: 'card-section', textContent: t }),
+                        el('div', { className: 'card-grid' })
+                    ]);
+                    setSectionTab(ns, tab);
+                    placeInTab(ns, tab);
+                    decorateSection(ns);
+                    closeGate(); updateDirty();
+                    ns.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    msg('Section added under ' + tabName(tab) + '. Add cards or images to it, then Save to GitHub.');
                 });
+                gate.addEventListener('keydown', e => { if (e.key === 'Escape') closeGate(); if (e.key === 'Enter' && e.target === name) ok.click(); });
+                name.focus();
             }
             function enterEdit() {
                 editing = true;
@@ -571,7 +674,8 @@
                 if (force && isDirty()) { location.href = location.pathname + location.search; return; }
                 editing = false; token = null;
                 document.body.classList.remove('editing');
-                projects.querySelectorAll('.edit-handle, .ed-add-row').forEach(h => h.remove());
+                projects.querySelectorAll('.edit-handle, .ed-add-row, .ed-tag').forEach(h => h.remove());
+                if (secRow) { secRow.remove(); secRow = null; }
                 if (bar) { bar.remove(); bar = null; }
                 leaveHash();
             }
@@ -581,7 +685,7 @@
                 const d = isDirty();
                 saveBtn.disabled = !d || busy;
                 discardBtn.disabled = !d || busy;
-                msg(d ? 'Unsaved changes.' : 'Drag ⠇ to move. Tap a card to edit it, or use + Add card.');
+                msg(d ? 'Unsaved changes.' : 'Drag ⠇ to move. Tap a card or section title to edit it. + Section buttons are at the bottom.');
             }
 
             async function save() {
@@ -688,7 +792,7 @@
                 }
                 row.append(cancel, ok);
                 const sec = grid.closest('.proj-section'), h = sec && headingOf(sec);
-                const where = h ? h.textContent.replace('⠇', '').trim() : '';
+                const where = h ? headingText(h) : '';
                 gate = el('div', { id: 'editGate' }, [el('div', { className: 'ed-box' }, [
                     el('h3', { textContent: (card ? 'Edit card' : 'New card') + (where ? ' — ' + where : '') }),
                     lT, lD, lL, lI, upRow, err, row
@@ -825,6 +929,8 @@
                 if (busy || e.target.closest('.edit-handle')) return;
                 const add = e.target.closest('.ed-add');
                 if (add) { openCardForm(add.closest('.proj-section').querySelector('.card-grid'), null); return; }
+                const head = e.target.closest('.card-section');
+                if (head) { openSectionForm(head.closest('.proj-section')); return; }
                 const card = e.target.closest('.game-card');
                 if (card) openCardForm(card.parentNode, card);
             }, true);
