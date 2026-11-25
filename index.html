@@ -191,8 +191,7 @@
             }
             body.editing .card-section { cursor: pointer; }
             #projects.sorting-sections .ed-tag { display: none !important; }
-            .ed-sec-row { display: none; }
-            body.editing .ed-sec-row { align-self: stretch; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
             .ed-add {
                 display: none; align-self: flex-start; min-height: 44px; padding: 0 16px;
                 border-radius: 10px; border: 1px dashed #666; background: transparent; color: #ccc;
@@ -535,20 +534,25 @@
                 addImgs.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (!busy && !gate) pick.click(); });
                 sec.append(el('div', { className: 'ed-add-row' }, [el('button', { type: 'button', className: 'ed-add', textContent: '+ Add card' }), addImgs, pick]));
             }
-            let secRow = null;
+            // "+ Add section" sits in the add row of the last section of each tab
+            function refreshSectionButtons() {
+                projects.querySelectorAll('.ed-add-sec').forEach(b => b.remove());
+                const last = {};
+                projects.querySelectorAll(':scope > .proj-section').forEach(s => { last[s.dataset.tab || 'projects'] = s; });
+                Object.entries(last).forEach(([tab, s]) => {
+                    const row = s.querySelector(':scope > .ed-add-row');
+                    if (!row) return;
+                    const b = el('button', { type: 'button', className: 'ed-add ed-add-sec', textContent: '+ Add section' });
+                    b.dataset.tab = tab;
+                    row.insertBefore(b, row.querySelector('input[type=file]'));
+                });
+            }
             function addHandles() {
                 projects.querySelectorAll('.game-card').forEach(a => {
                     a.append(el('span', { className: 'edit-handle', textContent: '⠇', title: 'Drag card' }));
                     a.lastChild.dataset.kind = 'card';
                 });
                 projects.querySelectorAll(':scope > .proj-section').forEach(decorateSection);
-                // One "+ Section" button per tab, below all the sections
-                secRow = el('div', { className: 'ed-sec-row' }, tabList().map(t => {
-                    const b = el('button', { type: 'button', className: 'ed-add', textContent: '+ Section in ' + t.name });
-                    b.addEventListener('click', e => { e.preventDefault(); if (!busy) openSectionForm(null, t.id); });
-                    return b;
-                }));
-                projects.after(secRow);
             }
 
             // ---------- Add / rename / move / delete sections ----------
@@ -675,17 +679,17 @@
                 editing = false; token = null;
                 document.body.classList.remove('editing');
                 projects.querySelectorAll('.edit-handle, .ed-add-row, .ed-tag').forEach(h => h.remove());
-                if (secRow) { secRow.remove(); secRow = null; }
                 if (bar) { bar.remove(); bar = null; }
                 leaveHash();
             }
             function msg(t) { if (msgEl) msgEl.textContent = t; }
             function isDirty() { return buildRegion(document) !== baseline || lookLine(look) !== baseLook; }
             function updateDirty() {
+                if (editing) refreshSectionButtons();
                 const d = isDirty();
                 saveBtn.disabled = !d || busy;
                 discardBtn.disabled = !d || busy;
-                msg(d ? 'Unsaved changes.' : 'Drag ⠇ to move. Tap a card or section title to edit it. + Section buttons are at the bottom.');
+                msg(d ? 'Unsaved changes.' : 'Drag ⠇ to move. Tap a card or section title to edit it.');
             }
 
             async function save() {
@@ -927,6 +931,8 @@
                 if (e.target.closest('.ed-add-imgs') || e.target.closest('input[type=file]')) return;
                 e.preventDefault();
                 if (busy || e.target.closest('.edit-handle')) return;
+                const addSec = e.target.closest('.ed-add-sec');
+                if (addSec) { openSectionForm(null, addSec.dataset.tab); return; }
                 const add = e.target.closest('.ed-add');
                 if (add) { openCardForm(add.closest('.proj-section').querySelector('.card-grid'), null); return; }
                 const head = e.target.closest('.card-section');
